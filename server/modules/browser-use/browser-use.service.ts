@@ -303,7 +303,7 @@ async function installRuntime(): Promise<{ success: boolean; message: string }> 
   installPromise = (async () => {
     try {
       lastInstallMessage = 'Installing Playwright package...';
-      await runCommand(npmCommand, ['install', '--no-save', '--no-package-lock', 'playwright']);
+      await runCommand(npmCommand, ['install', '--no-save', '--no-package-lock', '--legacy-peer-deps', 'playwright']);
 
       if (process.platform === 'linux') {
         lastInstallMessage = 'Installing Chromium system dependencies...';
