@@ -31,6 +31,7 @@ const pendingToolApprovals = new Map();
 const abortedSessionIds = new Set();
 const TOOL_APPROVAL_TIMEOUT_MS = parseInt(process.env.CLAUDE_TOOL_APPROVAL_TIMEOUT_MS, 10) || 55000;
 const TOOLS_REQUIRING_INTERACTION = new Set(['AskUserQuestion', 'ExitPlanMode']);
+
 /**
  * Extracts the prompt text from a Task subagent tool_use input.
  * Mirrors the logic in claude-sessions.provider.ts extractSubagentPrompt().
