@@ -23,7 +23,8 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url))
-      }
+      },
+      dedupe: ['@codemirror/state']
     },
     server: {
       host,
