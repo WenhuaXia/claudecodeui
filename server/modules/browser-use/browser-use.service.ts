@@ -243,10 +243,11 @@ const INSTALL_COMMAND_TIMEOUT_MS = Number.parseInt(
   10,
 );
 
-function runCommand(command: string, args: string[]): Promise<void> {
+const INSTALL_ROOT = path.resolve(__dirname, '..', '..', '..');
+function runCommand(command: string, args: string[], cwd = INSTALL_ROOT): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
-      cwd: process.cwd(),
+      cwd,
       env: process.env,
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -305,7 +306,7 @@ async function installRuntime(): Promise<{ success: boolean; message: string }> 
   installPromise = (async () => {
     try {
       lastInstallMessage = 'Installing Playwright package...';
-      await runCommand(npmCommand, ['install', '--no-save', '--no-package-lock', 'playwright']);
+      await runCommand(npmCommand, ['install', '--no-save', '--no-package-lock', '--legacy-peer-deps', 'playwright']);
 
       if (process.platform === 'linux') {
         lastInstallMessage = 'Installing Chromium system dependencies...';
