@@ -8,7 +8,6 @@ const colors = {
     blue: '\x1b[34m',
     dim: '\x1b[2m',
 };
-
 const c = {
     info: (text) => `${colors.cyan}${text}${colors.reset}`,
     ok: (text) => `${colors.green}${text}${colors.reset}`,
@@ -17,5 +16,5 @@ const c = {
     bright: (text) => `${colors.bright}${text}${colors.reset}`,
     dim: (text) => `${colors.dim}${text}${colors.reset}`,
 };
-
 export { colors, c };
+//# sourceMappingURL=colors.js.map

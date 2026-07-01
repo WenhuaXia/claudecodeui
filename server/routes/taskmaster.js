@@ -1,13 +1,12 @@
 /**
  * TASKMASTER API ROUTES
  * ====================
- * 
+ *
  * This module provides API endpoints for TaskMaster integration including:
  * - .taskmaster folder detection in project directories
  * - MCP server configuration detection
  * - TaskMaster state and metadata management
  */
-
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -16,7 +15,6 @@ import { spawn } from 'child_process';
 import { projectsDb } from '../modules/database/index.js';
 import { detectTaskMasterMCPServer } from '../utils/mcp-detector.js';
 import { broadcastTaskMasterProjectUpdate, broadcastTaskMasterTasksUpdate } from '../utils/taskmaster-websocket.js';
-
 /**
  * Resolve the absolute project directory from a DB-assigned `projectId`.
  *
@@ -26,14 +24,12 @@ import { broadcastTaskMasterProjectUpdate, broadcastTaskMasterTasksUpdate } from
  * every handler calls this helper and 404s when the id is unknown.
  */
 async function resolveProjectPathFromId(projectId) {
-  if (!projectId) {
-    return null;
-  }
-  return projectsDb.getProjectPathById(projectId);
+    if (!projectId) {
+        return null;
+    }
+    return projectsDb.getProjectPathById(projectId);
 }
-
 const router = express.Router();
-
 /**
  * Check if TaskMaster CLI is installed globally
  * @returns {Promise<Object>} Installation status result
@@ -41,36 +37,29 @@ const router = express.Router();
 async function checkTaskMasterInstallation() {
     return new Promise((resolve) => {
         // Check if task-master command is available
-        const child = spawn('which', ['task-master'], { 
+        const child = spawn('which', ['task-master'], {
             stdio: ['ignore', 'pipe', 'pipe'],
-            shell: true 
+            shell: true
         });
-        
         let output = '';
         let errorOutput = '';
-        
         child.stdout.on('data', (data) => {
             output += data.toString();
         });
-        
         child.stderr.on('data', (data) => {
             errorOutput += data.toString();
         });
-        
         child.on('close', (code) => {
             if (code === 0 && output.trim()) {
                 // TaskMaster is installed, get version
-                const versionChild = spawn('task-master', ['--version'], { 
+                const versionChild = spawn('task-master', ['--version'], {
                     stdio: ['ignore', 'pipe', 'pipe'],
-                    shell: true 
+                    shell: true
                 });
-                
                 let versionOutput = '';
-                
                 versionChild.stdout.on('data', (data) => {
                     versionOutput += data.toString();
                 });
-                
                 versionChild.on('close', (versionCode) => {
                     resolve({
                         isInstalled: true,
@@ -79,7 +68,6 @@ async function checkTaskMasterInstallation() {
                         reason: null
                     });
                 });
-                
                 versionChild.on('error', () => {
                     resolve({
                         isInstalled: true,
@@ -88,7 +76,8 @@ async function checkTaskMasterInstallation() {
                         reason: null
                     });
                 });
-            } else {
+            }
+            else {
                 resolve({
                     isInstalled: false,
                     installPath: null,
@@ -97,7 +86,6 @@ async function checkTaskMasterInstallation() {
                 });
             }
         });
-        
         child.on('error', (error) => {
             resolve({
                 isInstalled: false,
@@ -108,9 +96,7 @@ async function checkTaskMasterInstallation() {
         });
     });
 }
-
 // API Routes
-
 /**
  * GET /api/taskmaster/installation-status
  * Check if TaskMaster CLI is installed on the system
@@ -118,17 +104,16 @@ async function checkTaskMasterInstallation() {
 router.get('/installation-status', async (req, res) => {
     try {
         const installationStatus = await checkTaskMasterInstallation();
-        
         // Also check for MCP server configuration
         const mcpStatus = await detectTaskMasterMCPServer();
-        
         res.json({
             success: true,
             installation: installationStatus,
             mcpServer: mcpStatus,
             isReady: installationStatus.isInstalled && mcpStatus.hasMCPServer
         });
-    } catch (error) {
+    }
+    catch (error) {
         console.error('Error checking TaskMaster installation:', error);
         res.status(500).json({
             success: false,
@@ -145,7 +130,6 @@ router.get('/installation-status', async (req, res) => {
         });
     }
 });
-
 /**
  * GET /api/taskmaster/tasks/:projectId
  * Load actual tasks from .taskmaster/tasks/tasks.json
@@ -156,7 +140,6 @@ router.get('/installation-status', async (req, res) => {
 router.get('/tasks/:projectId', async (req, res) => {
     try {
         const { projectId } = req.params;
-
         // Get project path via the DB; the legacy JSONL-based resolver is gone.
         const projectPath = await resolveProjectPathFromId(projectId);
         if (!projectPath) {
@@ -165,54 +148,51 @@ router.get('/tasks/:projectId', async (req, res) => {
                 message: `Project "${projectId}" does not exist`
             });
         }
-
         const taskMasterPath = path.join(projectPath, '.taskmaster');
         const tasksFilePath = path.join(taskMasterPath, 'tasks', 'tasks.json');
-
         // Check if tasks file exists
         try {
             await fsPromises.access(tasksFilePath);
-        } catch (error) {
+        }
+        catch (error) {
             return res.json({
                 projectId,
                 tasks: [],
                 message: 'No tasks.json file found'
             });
         }
-
         // Read and parse tasks file
         try {
             const tasksContent = await fsPromises.readFile(tasksFilePath, 'utf8');
             const tasksData = JSON.parse(tasksContent);
-            
             let tasks = [];
             let currentTag = 'master';
-            
             // Handle both tagged and legacy formats
             if (Array.isArray(tasksData)) {
                 // Legacy format
                 tasks = tasksData;
-            } else if (tasksData.tasks) {
+            }
+            else if (tasksData.tasks) {
                 // Simple format with tasks array
                 tasks = tasksData.tasks;
-            } else {
+            }
+            else {
                 // Tagged format - get tasks from current tag or master
                 if (tasksData[currentTag] && tasksData[currentTag].tasks) {
                     tasks = tasksData[currentTag].tasks;
-                } else if (tasksData.master && tasksData.master.tasks) {
+                }
+                else if (tasksData.master && tasksData.master.tasks) {
                     tasks = tasksData.master.tasks;
-                } else {
+                }
+                else {
                     // Get tasks from first available tag
-                    const firstTag = Object.keys(tasksData).find(key => 
-                        tasksData[key].tasks && Array.isArray(tasksData[key].tasks)
-                    );
+                    const firstTag = Object.keys(tasksData).find(key => tasksData[key].tasks && Array.isArray(tasksData[key].tasks));
                     if (firstTag) {
                         tasks = tasksData[firstTag].tasks;
                         currentTag = firstTag;
                     }
                 }
             }
-
             // Transform tasks to ensure all have required fields
             const transformedTasks = tasks.map(task => ({
                 id: task.id,
@@ -227,7 +207,6 @@ router.get('/tasks/:projectId', async (req, res) => {
                 testStrategy: task.testStrategy || task.test_strategy || '',
                 subtasks: task.subtasks || []
             }));
-
             res.json({
                 projectId,
                 projectPath,
@@ -244,16 +223,16 @@ router.get('/tasks/:projectId', async (req, res) => {
                 },
                 timestamp: new Date().toISOString()
             });
-
-        } catch (parseError) {
+        }
+        catch (parseError) {
             console.error('Failed to parse tasks.json:', parseError);
             return res.status(500).json({
                 error: 'Failed to parse tasks file',
                 message: parseError.message
             });
         }
-
-    } catch (error) {
+    }
+    catch (error) {
         console.error('TaskMaster tasks loading error:', error);
         res.status(500).json({
             error: 'Failed to load TaskMaster tasks',
@@ -261,7 +240,6 @@ router.get('/tasks/:projectId', async (req, res) => {
         });
     }
 });
-
 /**
  * GET /api/taskmaster/prd/:projectId
  * List all PRD files in the project's .taskmaster/docs directory
@@ -269,7 +247,6 @@ router.get('/tasks/:projectId', async (req, res) => {
 router.get('/prd/:projectId', async (req, res) => {
     try {
         const { projectId } = req.params;
-
         // projectId → projectPath lookup through the DB (post-migration).
         const projectPath = await resolveProjectPathFromId(projectId);
         if (!projectPath) {
@@ -278,29 +255,25 @@ router.get('/prd/:projectId', async (req, res) => {
                 message: `Project "${projectId}" does not exist`
             });
         }
-
         const docsPath = path.join(projectPath, '.taskmaster', 'docs');
-        
         // Check if docs directory exists
         try {
             await fsPromises.access(docsPath, fs.constants.R_OK);
-        } catch (error) {
+        }
+        catch (error) {
             return res.json({
                 projectId,
                 prdFiles: [],
                 message: 'No .taskmaster/docs directory found'
             });
         }
-
         // Read directory and filter for PRD files
         try {
             const files = await fsPromises.readdir(docsPath);
             const prdFiles = [];
-
             for (const file of files) {
                 const filePath = path.join(docsPath, file);
                 const stats = await fsPromises.stat(filePath);
-                
                 if (stats.isFile() && (file.endsWith('.txt') || file.endsWith('.md'))) {
                     prdFiles.push({
                         name: file,
@@ -311,23 +284,22 @@ router.get('/prd/:projectId', async (req, res) => {
                     });
                 }
             }
-
             res.json({
                 projectId,
                 projectPath,
                 prdFiles: prdFiles.sort((a, b) => new Date(b.modified) - new Date(a.modified)),
                 timestamp: new Date().toISOString()
             });
-
-        } catch (readError) {
+        }
+        catch (readError) {
             console.error('Error reading docs directory:', readError);
             return res.status(500).json({
                 error: 'Failed to read PRD files',
                 message: readError.message
             });
         }
-
-    } catch (error) {
+    }
+    catch (error) {
         console.error('PRD list error:', error);
         res.status(500).json({
             error: 'Failed to list PRD files',
@@ -335,7 +307,6 @@ router.get('/prd/:projectId', async (req, res) => {
         });
     }
 });
-
 /**
  * POST /api/taskmaster/prd/:projectId
  * Create or update a PRD file in the project's .taskmaster/docs directory
@@ -344,14 +315,12 @@ router.post('/prd/:projectId', async (req, res) => {
     try {
         const { projectId } = req.params;
         const { fileName, content } = req.body;
-
         if (!fileName || !content) {
             return res.status(400).json({
                 error: 'Missing required fields',
                 message: 'fileName and content are required'
             });
         }
-
         // Validate filename
         if (!fileName.match(/^[\w\-. ]+\.(txt|md)$/)) {
             return res.status(400).json({
@@ -359,7 +328,6 @@ router.post('/prd/:projectId', async (req, res) => {
                 message: 'Filename must end with .txt or .md and contain only alphanumeric characters, spaces, dots, and dashes'
             });
         }
-
         // Resolve the project folder through the DB using the projectId param.
         const projectPath = await resolveProjectPathFromId(projectId);
         if (!projectPath) {
@@ -368,28 +336,24 @@ router.post('/prd/:projectId', async (req, res) => {
                 message: `Project "${projectId}" does not exist`
             });
         }
-
         const docsPath = path.join(projectPath, '.taskmaster', 'docs');
         const filePath = path.join(docsPath, fileName);
-
         // Ensure docs directory exists
         try {
             await fsPromises.mkdir(docsPath, { recursive: true });
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Failed to create docs directory:', error);
             return res.status(500).json({
                 error: 'Failed to create directory',
                 message: error.message
             });
         }
-
         // Write the PRD file
         try {
             await fsPromises.writeFile(filePath, content, 'utf8');
-            
             // Get file stats
             const stats = await fsPromises.stat(filePath);
-
             res.json({
                 projectId,
                 projectPath,
@@ -401,16 +365,16 @@ router.post('/prd/:projectId', async (req, res) => {
                 message: 'PRD file saved successfully',
                 timestamp: new Date().toISOString()
             });
-
-        } catch (writeError) {
+        }
+        catch (writeError) {
             console.error('Failed to write PRD file:', writeError);
             return res.status(500).json({
                 error: 'Failed to write PRD file',
                 message: writeError.message
             });
         }
-
-    } catch (error) {
+    }
+    catch (error) {
         console.error('PRD create/update error:', error);
         res.status(500).json({
             error: 'Failed to create/update PRD file',
@@ -418,7 +382,6 @@ router.post('/prd/:projectId', async (req, res) => {
         });
     }
 });
-
 /**
  * GET /api/taskmaster/prd/:projectId/:fileName
  * Get content of a specific PRD file
@@ -426,7 +389,6 @@ router.post('/prd/:projectId', async (req, res) => {
 router.get('/prd/:projectId/:fileName', async (req, res) => {
     try {
         const { projectId, fileName } = req.params;
-
         const projectPath = await resolveProjectPathFromId(projectId);
         if (!projectPath) {
             return res.status(404).json({
@@ -434,24 +396,21 @@ router.get('/prd/:projectId/:fileName', async (req, res) => {
                 message: `Project "${projectId}" does not exist`
             });
         }
-
         const filePath = path.join(projectPath, '.taskmaster', 'docs', fileName);
-        
         // Check if file exists
         try {
             await fsPromises.access(filePath, fs.constants.R_OK);
-        } catch (error) {
+        }
+        catch (error) {
             return res.status(404).json({
                 error: 'PRD file not found',
                 message: `File "${fileName}" does not exist`
             });
         }
-
         // Read file content
         try {
             const content = await fsPromises.readFile(filePath, 'utf8');
             const stats = await fsPromises.stat(filePath);
-
             res.json({
                 projectId,
                 projectPath,
@@ -463,16 +422,16 @@ router.get('/prd/:projectId/:fileName', async (req, res) => {
                 modified: stats.mtime.toISOString(),
                 timestamp: new Date().toISOString()
             });
-
-        } catch (readError) {
+        }
+        catch (readError) {
             console.error('Failed to read PRD file:', readError);
             return res.status(500).json({
                 error: 'Failed to read PRD file',
                 message: readError.message
             });
         }
-
-    } catch (error) {
+    }
+    catch (error) {
         console.error('PRD read error:', error);
         res.status(500).json({
             error: 'Failed to read PRD file',
@@ -480,7 +439,6 @@ router.get('/prd/:projectId/:fileName', async (req, res) => {
         });
     }
 });
-
 /**
  * POST /api/taskmaster/init/:projectId
  * Initialize TaskMaster in a project
@@ -488,7 +446,6 @@ router.get('/prd/:projectId/:fileName', async (req, res) => {
 router.post('/init/:projectId', async (req, res) => {
     try {
         const { projectId } = req.params;
-
         const projectPath = await resolveProjectPathFromId(projectId);
         if (!projectPath) {
             return res.status(404).json({
@@ -496,7 +453,6 @@ router.post('/init/:projectId', async (req, res) => {
                 message: `Project "${projectId}" does not exist`
             });
         }
-
         // Check if TaskMaster is already initialized
         const taskMasterPath = path.join(projectPath, '.taskmaster');
         try {
@@ -505,40 +461,31 @@ router.post('/init/:projectId', async (req, res) => {
                 error: 'TaskMaster already initialized',
                 message: 'TaskMaster is already configured for this project'
             });
-        } catch (error) {
+        }
+        catch (error) {
             // Directory doesn't exist, we can proceed
         }
-
         // Run taskmaster init command
         const initProcess = spawn('npx', ['task-master', 'init'], {
             cwd: projectPath,
             stdio: ['pipe', 'pipe', 'pipe']
         });
-
         let stdout = '';
         let stderr = '';
-
         initProcess.stdout.on('data', (data) => {
             stdout += data.toString();
         });
-
         initProcess.stderr.on('data', (data) => {
             stderr += data.toString();
         });
-
         initProcess.on('close', (code) => {
             if (code === 0) {
                 // Broadcast TaskMaster project update via WebSocket. The
                 // WebSocket payload keeps using `projectId` so the frontend
                 // can match notifications against the current selection.
                 if (req.app.locals.wss) {
-                    broadcastTaskMasterProjectUpdate(
-                        req.app.locals.wss,
-                        projectId,
-                        { hasTaskmaster: true, status: 'initialized' }
-                    );
+                    broadcastTaskMasterProjectUpdate(req.app.locals.wss, projectId, { hasTaskmaster: true, status: 'initialized' });
                 }
-
                 res.json({
                     projectId,
                     projectPath,
@@ -546,7 +493,8 @@ router.post('/init/:projectId', async (req, res) => {
                     output: stdout,
                     timestamp: new Date().toISOString()
                 });
-            } else {
+            }
+            else {
                 console.error('TaskMaster init failed:', stderr);
                 res.status(500).json({
                     error: 'Failed to initialize TaskMaster',
@@ -555,12 +503,11 @@ router.post('/init/:projectId', async (req, res) => {
                 });
             }
         });
-
         // Send 'yes' responses to automated prompts
         initProcess.stdin.write('yes\n');
         initProcess.stdin.end();
-
-    } catch (error) {
+    }
+    catch (error) {
         console.error('TaskMaster init error:', error);
         res.status(500).json({
             error: 'Failed to initialize TaskMaster',
@@ -568,7 +515,6 @@ router.post('/init/:projectId', async (req, res) => {
         });
     }
 });
-
 /**
  * POST /api/taskmaster/add-task/:projectId
  * Add a new task to the project
@@ -577,14 +523,12 @@ router.post('/add-task/:projectId', async (req, res) => {
     try {
         const { projectId } = req.params;
         const { prompt, title, description, priority = 'medium', dependencies } = req.body;
-
         if (!prompt && (!title || !description)) {
             return res.status(400).json({
                 error: 'Missing required parameters',
                 message: 'Either "prompt" or both "title" and "description" are required'
             });
         }
-
         const projectPath = await resolveProjectPathFromId(projectId);
         if (!projectPath) {
             return res.status(404).json({
@@ -592,57 +536,44 @@ router.post('/add-task/:projectId', async (req, res) => {
                 message: `Project "${projectId}" does not exist`
             });
         }
-
         // Build the task-master add-task command
         const args = ['task-master-ai', 'add-task'];
-        
         if (prompt) {
             args.push('--prompt', prompt);
             args.push('--research'); // Use research for AI-generated tasks
-        } else {
+        }
+        else {
             args.push('--prompt', `Create a task titled "${title}" with description: ${description}`);
         }
-        
         if (priority) {
             args.push('--priority', priority);
         }
-        
         if (dependencies) {
             args.push('--dependencies', dependencies);
         }
-
         // Run task-master add-task command
         const addTaskProcess = spawn('npx', args, {
             cwd: projectPath,
             stdio: ['pipe', 'pipe', 'pipe']
         });
-
         let stdout = '';
         let stderr = '';
-
         addTaskProcess.stdout.on('data', (data) => {
             stdout += data.toString();
         });
-
         addTaskProcess.stderr.on('data', (data) => {
             stderr += data.toString();
         });
-
         addTaskProcess.on('close', (code) => {
             console.log('Add task process completed with code:', code);
             console.log('Stdout:', stdout);
             console.log('Stderr:', stderr);
-            
             if (code === 0) {
                 // Broadcast task update via WebSocket using the projectId so
                 // clients subscribed to this project get notified immediately.
                 if (req.app.locals.wss) {
-                    broadcastTaskMasterTasksUpdate(
-                        req.app.locals.wss,
-                        projectId
-                    );
+                    broadcastTaskMasterTasksUpdate(req.app.locals.wss, projectId);
                 }
-
                 res.json({
                     projectId,
                     projectPath,
@@ -650,7 +581,8 @@ router.post('/add-task/:projectId', async (req, res) => {
                     output: stdout,
                     timestamp: new Date().toISOString()
                 });
-            } else {
+            }
+            else {
                 console.error('Add task failed:', stderr);
                 res.status(500).json({
                     error: 'Failed to add task',
@@ -659,10 +591,9 @@ router.post('/add-task/:projectId', async (req, res) => {
                 });
             }
         });
-
         addTaskProcess.stdin.end();
-
-    } catch (error) {
+    }
+    catch (error) {
         console.error('Add task error:', error);
         res.status(500).json({
             error: 'Failed to add task',
@@ -670,7 +601,6 @@ router.post('/add-task/:projectId', async (req, res) => {
         });
     }
 });
-
 /**
  * PUT /api/taskmaster/update-task/:projectId/:taskId
  * Update a specific task using TaskMaster CLI
@@ -679,7 +609,6 @@ router.put('/update-task/:projectId/:taskId', async (req, res) => {
     try {
         const { projectId, taskId } = req.params;
         const { title, description, status, priority, details } = req.body;
-
         const projectPath = await resolveProjectPathFromId(projectId);
         if (!projectPath) {
             return res.status(404).json({
@@ -687,32 +616,26 @@ router.put('/update-task/:projectId/:taskId', async (req, res) => {
                 message: `Project "${projectId}" does not exist`
             });
         }
-
         // If only updating status, use set-status command
         if (status && Object.keys(req.body).length === 1) {
             const setStatusProcess = spawn('npx', ['task-master-ai', 'set-status', `--id=${taskId}`, `--status=${status}`], {
                 cwd: projectPath,
                 stdio: ['pipe', 'pipe', 'pipe']
             });
-
             let stdout = '';
             let stderr = '';
-
             setStatusProcess.stdout.on('data', (data) => {
                 stdout += data.toString();
             });
-
             setStatusProcess.stderr.on('data', (data) => {
                 stderr += data.toString();
             });
-
             setStatusProcess.on('close', (code) => {
                 if (code === 0) {
                     // Broadcast task update via WebSocket
                     if (req.app.locals.wss) {
                         broadcastTaskMasterTasksUpdate(req.app.locals.wss, projectId);
                     }
-
                     res.json({
                         projectId,
                         projectPath,
@@ -721,7 +644,8 @@ router.put('/update-task/:projectId/:taskId', async (req, res) => {
                         output: stdout,
                         timestamp: new Date().toISOString()
                     });
-                } else {
+                }
+                else {
                     console.error('Set task status failed:', stderr);
                     res.status(500).json({
                         error: 'Failed to update task status',
@@ -730,41 +654,38 @@ router.put('/update-task/:projectId/:taskId', async (req, res) => {
                     });
                 }
             });
-
             setStatusProcess.stdin.end();
-        } else {
+        }
+        else {
             // For other updates, use update-task command with a prompt describing the changes
             const updates = [];
-            if (title) updates.push(`title: "${title}"`);
-            if (description) updates.push(`description: "${description}"`);
-            if (priority) updates.push(`priority: "${priority}"`);
-            if (details) updates.push(`details: "${details}"`);
-            
+            if (title)
+                updates.push(`title: "${title}"`);
+            if (description)
+                updates.push(`description: "${description}"`);
+            if (priority)
+                updates.push(`priority: "${priority}"`);
+            if (details)
+                updates.push(`details: "${details}"`);
             const prompt = `Update task with the following changes: ${updates.join(', ')}`;
-
             const updateProcess = spawn('npx', ['task-master-ai', 'update-task', `--id=${taskId}`, `--prompt=${prompt}`], {
                 cwd: projectPath,
                 stdio: ['pipe', 'pipe', 'pipe']
             });
-
             let stdout = '';
             let stderr = '';
-
             updateProcess.stdout.on('data', (data) => {
                 stdout += data.toString();
             });
-
             updateProcess.stderr.on('data', (data) => {
                 stderr += data.toString();
             });
-
             updateProcess.on('close', (code) => {
                 if (code === 0) {
                     // Broadcast task update via WebSocket
                     if (req.app.locals.wss) {
                         broadcastTaskMasterTasksUpdate(req.app.locals.wss, projectId);
                     }
-
                     res.json({
                         projectId,
                         projectPath,
@@ -773,7 +694,8 @@ router.put('/update-task/:projectId/:taskId', async (req, res) => {
                         output: stdout,
                         timestamp: new Date().toISOString()
                     });
-                } else {
+                }
+                else {
                     console.error('Update task failed:', stderr);
                     res.status(500).json({
                         error: 'Failed to update task',
@@ -782,11 +704,10 @@ router.put('/update-task/:projectId/:taskId', async (req, res) => {
                     });
                 }
             });
-
             updateProcess.stdin.end();
         }
-
-    } catch (error) {
+    }
+    catch (error) {
         console.error('Update task error:', error);
         res.status(500).json({
             error: 'Failed to update task',
@@ -794,7 +715,6 @@ router.put('/update-task/:projectId/:taskId', async (req, res) => {
         });
     }
 });
-
 /**
  * POST /api/taskmaster/parse-prd/:projectId
  * Parse a PRD file to generate tasks
@@ -803,7 +723,6 @@ router.post('/parse-prd/:projectId', async (req, res) => {
     try {
         const { projectId } = req.params;
         const { fileName = 'prd.txt', numTasks, append = false } = req.body;
-
         const projectPath = await resolveProjectPathFromId(projectId);
         if (!projectPath) {
             return res.status(404).json({
@@ -811,59 +730,45 @@ router.post('/parse-prd/:projectId', async (req, res) => {
                 message: `Project "${projectId}" does not exist`
             });
         }
-
         const prdPath = path.join(projectPath, '.taskmaster', 'docs', fileName);
-        
         // Check if PRD file exists
         try {
             await fsPromises.access(prdPath, fs.constants.F_OK);
-        } catch (error) {
+        }
+        catch (error) {
             return res.status(404).json({
                 error: 'PRD file not found',
                 message: `File "${fileName}" does not exist in .taskmaster/docs/`
             });
         }
-
         // Build the command args
         const args = ['task-master-ai', 'parse-prd', prdPath];
-        
         if (numTasks) {
             args.push('--num-tasks', numTasks.toString());
         }
-        
         if (append) {
             args.push('--append');
         }
-        
         args.push('--research'); // Use research for better PRD parsing
-
         // Run task-master parse-prd command
         const parsePRDProcess = spawn('npx', args, {
             cwd: projectPath,
             stdio: ['pipe', 'pipe', 'pipe']
         });
-
         let stdout = '';
         let stderr = '';
-
         parsePRDProcess.stdout.on('data', (data) => {
             stdout += data.toString();
         });
-
         parsePRDProcess.stderr.on('data', (data) => {
             stderr += data.toString();
         });
-
         parsePRDProcess.on('close', (code) => {
             if (code === 0) {
                 // Broadcast task update via WebSocket
                 if (req.app.locals.wss) {
-                    broadcastTaskMasterTasksUpdate(
-                        req.app.locals.wss,
-                        projectId
-                    );
+                    broadcastTaskMasterTasksUpdate(req.app.locals.wss, projectId);
                 }
-
                 res.json({
                     projectId,
                     projectPath,
@@ -872,7 +777,8 @@ router.post('/parse-prd/:projectId', async (req, res) => {
                     output: stdout,
                     timestamp: new Date().toISOString()
                 });
-            } else {
+            }
+            else {
                 console.error('Parse PRD failed:', stderr);
                 res.status(500).json({
                     error: 'Failed to parse PRD',
@@ -881,10 +787,9 @@ router.post('/parse-prd/:projectId', async (req, res) => {
                 });
             }
         });
-
         parsePRDProcess.stdin.end();
-
-    } catch (error) {
+    }
+    catch (error) {
         console.error('Parse PRD error:', error);
         res.status(500).json({
             error: 'Failed to parse PRD',
@@ -892,7 +797,6 @@ router.post('/parse-prd/:projectId', async (req, res) => {
         });
     }
 });
-
 /**
  * GET /api/taskmaster/prd-templates
  * Get available PRD templates
@@ -1324,13 +1228,12 @@ Description of the business problem, data sources, and expected insights.
 - Reproducibility of results`
             }
         ];
-
         res.json({
             templates,
             timestamp: new Date().toISOString()
         });
-
-    } catch (error) {
+    }
+    catch (error) {
         console.error('PRD templates error:', error);
         res.status(500).json({
             error: 'Failed to get PRD templates',
@@ -1338,7 +1241,6 @@ Description of the business problem, data sources, and expected insights.
         });
     }
 });
-
 /**
  * POST /api/taskmaster/apply-template/:projectId
  * Apply a PRD template to create a new PRD file
@@ -1347,14 +1249,12 @@ router.post('/apply-template/:projectId', async (req, res) => {
     try {
         const { projectId } = req.params;
         const { templateId, fileName = 'prd.txt', customizations = {} } = req.body;
-
         if (!templateId) {
             return res.status(400).json({
                 error: 'Missing required parameter',
                 message: 'templateId is required'
             });
         }
-
         const projectPath = await resolveProjectPathFromId(projectId);
         if (!projectPath) {
             return res.status(404).json({
@@ -1362,41 +1262,34 @@ router.post('/apply-template/:projectId', async (req, res) => {
                 message: `Project "${projectId}" does not exist`
             });
         }
-
         // Get the template content (this would normally fetch from the templates list)
         const templates = await getAvailableTemplates();
         const template = templates.find(t => t.id === templateId);
-
         if (!template) {
             return res.status(404).json({
                 error: 'Template not found',
                 message: `Template "${templateId}" does not exist`
             });
         }
-
         // Apply customizations to template content
         let content = template.content;
-        
         // Replace placeholders with customizations
         for (const [key, value] of Object.entries(customizations)) {
             const placeholder = `[${key}]`;
             content = content.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&'), 'g'), value);
         }
-
         // Ensure .taskmaster/docs directory exists
         const docsDir = path.join(projectPath, '.taskmaster', 'docs');
         try {
             await fsPromises.mkdir(docsDir, { recursive: true });
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Failed to create docs directory:', error);
         }
-
         const filePath = path.join(docsDir, fileName);
-
         // Write the template content to the file
         try {
             await fsPromises.writeFile(filePath, content, 'utf8');
-
             res.json({
                 projectId,
                 projectPath,
@@ -1407,16 +1300,16 @@ router.post('/apply-template/:projectId', async (req, res) => {
                 message: 'PRD template applied successfully',
                 timestamp: new Date().toISOString()
             });
-
-        } catch (writeError) {
+        }
+        catch (writeError) {
             console.error('Failed to write PRD template:', writeError);
             return res.status(500).json({
                 error: 'Failed to write PRD template',
                 message: writeError.message
             });
         }
-
-    } catch (error) {
+    }
+    catch (error) {
         console.error('Apply template error:', error);
         res.status(500).json({
             error: 'Failed to apply PRD template',
@@ -1424,7 +1317,6 @@ router.post('/apply-template/:projectId', async (req, res) => {
         });
     }
 });
-
 // Helper function to get available templates
 async function getAvailableTemplates() {
     // This could be extended to read from files or database
@@ -1464,5 +1356,5 @@ Brief description of what this web application will do and why it's needed.
         // Add other templates here if needed
     ];
 }
-
 export default router;
+//# sourceMappingURL=taskmaster.js.map

@@ -14,9 +14,7 @@ import { Octokit } from '@octokit/rest';
 import { providerModelsService } from '../modules/providers/services/provider-models.service.js';
 import { IS_PLATFORM } from '../constants/config.js';
 import { normalizeProjectPath } from '../shared/utils.js';
-
 const router = express.Router();
-
 /**
  * Middleware to authenticate agent API requests.
  *
@@ -29,196 +27,170 @@ const router = express.Router();
  *    via API keys created in the UI. Keys are validated against the local database.
  */
 const validateExternalApiKey = (req, res, next) => {
-  // Platform mode: Authentication is handled externally (e.g., by a proxy layer).
-  // Trust the request and use the default user context.
-  if (IS_PLATFORM) {
-    try {
-      const user = userDb.getFirstUser();
-      if (!user) {
-        return res.status(500).json({ error: 'Platform mode: No user found in database' });
-      }
-      req.user = user;
-      return next();
-    } catch (error) {
-      console.error('Platform mode error:', error);
-      return res.status(500).json({ error: 'Platform mode: Failed to fetch user' });
+    // Platform mode: Authentication is handled externally (e.g., by a proxy layer).
+    // Trust the request and use the default user context.
+    if (IS_PLATFORM) {
+        try {
+            const user = userDb.getFirstUser();
+            if (!user) {
+                return res.status(500).json({ error: 'Platform mode: No user found in database' });
+            }
+            req.user = user;
+            return next();
+        }
+        catch (error) {
+            console.error('Platform mode error:', error);
+            return res.status(500).json({ error: 'Platform mode: Failed to fetch user' });
+        }
     }
-  }
-
-  // Self-hosted mode: Validate API key from header or query parameter
-  const apiKey = req.headers['x-api-key'] || req.query.apiKey;
-
-  if (!apiKey) {
-    return res.status(401).json({ error: 'API key required' });
-  }
-
-  const user = apiKeysDb.validateApiKey(apiKey);
-
-  if (!user) {
-    return res.status(401).json({ error: 'Invalid or inactive API key' });
-  }
-
-  req.user = user;
-  next();
+    // Self-hosted mode: Validate API key from header or query parameter
+    const apiKey = req.headers['x-api-key'] || req.query.apiKey;
+    if (!apiKey) {
+        return res.status(401).json({ error: 'API key required' });
+    }
+    const user = apiKeysDb.validateApiKey(apiKey);
+    if (!user) {
+        return res.status(401).json({ error: 'Invalid or inactive API key' });
+    }
+    req.user = user;
+    next();
 };
-
 /**
  * Get the remote URL of a git repository
  * @param {string} repoPath - Path to the git repository
  * @returns {Promise<string>} - Remote URL of the repository
  */
 async function getGitRemoteUrl(repoPath) {
-  return new Promise((resolve, reject) => {
-    const gitProcess = spawn('git', ['config', '--get', 'remote.origin.url'], {
-      cwd: repoPath,
-      stdio: ['pipe', 'pipe', 'pipe']
+    return new Promise((resolve, reject) => {
+        const gitProcess = spawn('git', ['config', '--get', 'remote.origin.url'], {
+            cwd: repoPath,
+            stdio: ['pipe', 'pipe', 'pipe']
+        });
+        let stdout = '';
+        let stderr = '';
+        gitProcess.stdout.on('data', (data) => {
+            stdout += data.toString();
+        });
+        gitProcess.stderr.on('data', (data) => {
+            stderr += data.toString();
+        });
+        gitProcess.on('close', (code) => {
+            if (code === 0) {
+                resolve(stdout.trim());
+            }
+            else {
+                reject(new Error(`Failed to get git remote: ${stderr}`));
+            }
+        });
+        gitProcess.on('error', (error) => {
+            reject(new Error(`Failed to execute git: ${error.message}`));
+        });
     });
-
-    let stdout = '';
-    let stderr = '';
-
-    gitProcess.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
-
-    gitProcess.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-
-    gitProcess.on('close', (code) => {
-      if (code === 0) {
-        resolve(stdout.trim());
-      } else {
-        reject(new Error(`Failed to get git remote: ${stderr}`));
-      }
-    });
-
-    gitProcess.on('error', (error) => {
-      reject(new Error(`Failed to execute git: ${error.message}`));
-    });
-  });
 }
-
 /**
  * Normalize GitHub URLs for comparison
  * @param {string} url - GitHub URL
  * @returns {string} - Normalized URL
  */
 function normalizeGitHubUrl(url) {
-  // Remove .git suffix
-  let normalized = url.replace(/\.git$/, '');
-  // Convert SSH to HTTPS format for comparison
-  normalized = normalized.replace(/^git@github\.com:/, 'https://github.com/');
-  // Remove trailing slash
-  normalized = normalized.replace(/\/$/, '');
-  return normalized.toLowerCase();
+    // Remove .git suffix
+    let normalized = url.replace(/\.git$/, '');
+    // Convert SSH to HTTPS format for comparison
+    normalized = normalized.replace(/^git@github\.com:/, 'https://github.com/');
+    // Remove trailing slash
+    normalized = normalized.replace(/\/$/, '');
+    return normalized.toLowerCase();
 }
-
 /**
  * Parse GitHub URL to extract owner and repo
  * @param {string} url - GitHub URL (HTTPS or SSH)
  * @returns {{owner: string, repo: string}} - Parsed owner and repo
  */
 function parseGitHubUrl(url) {
-  // Handle HTTPS URLs: https://github.com/owner/repo or https://github.com/owner/repo.git
-  // Handle SSH URLs: git@github.com:owner/repo or git@github.com:owner/repo.git
-  const match = url.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/);
-  if (!match) {
-    throw new Error('Invalid GitHub URL format');
-  }
-  return {
-    owner: match[1],
-    repo: match[2].replace(/\.git$/, '')
-  };
+    // Handle HTTPS URLs: https://github.com/owner/repo or https://github.com/owner/repo.git
+    // Handle SSH URLs: git@github.com:owner/repo or git@github.com:owner/repo.git
+    const match = url.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/);
+    if (!match) {
+        throw new Error('Invalid GitHub URL format');
+    }
+    return {
+        owner: match[1],
+        repo: match[2].replace(/\.git$/, '')
+    };
 }
-
 /**
  * Auto-generate a branch name from a message
  * @param {string} message - The agent message
  * @returns {string} - Generated branch name
  */
 function autogenerateBranchName(message) {
-  // Convert to lowercase, replace spaces/special chars with hyphens
-  let branchName = message
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-    .replace(/\s+/g, '-') // Replace spaces with hyphens
-    .replace(/-+/g, '-') // Replace multiple hyphens with single
-    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
-
-  // Ensure non-empty fallback
-  if (!branchName) {
-    branchName = 'task';
-  }
-
-  // Generate timestamp suffix (last 6 chars of base36 timestamp)
-  const timestamp = Date.now().toString(36).slice(-6);
-  const suffix = `-${timestamp}`;
-
-  // Limit length to ensure total length including suffix fits within 50 characters
-  const maxBaseLength = 50 - suffix.length;
-  if (branchName.length > maxBaseLength) {
-    branchName = branchName.substring(0, maxBaseLength);
-  }
-
-  // Remove any trailing hyphen after truncation and ensure no leading hyphen
-  branchName = branchName.replace(/-$/, '').replace(/^-+/, '');
-
-  // If still empty or starts with hyphen after cleanup, use fallback
-  if (!branchName || branchName.startsWith('-')) {
-    branchName = 'task';
-  }
-
-  // Combine base name with timestamp suffix
-  branchName = `${branchName}${suffix}`;
-
-  // Final validation: ensure it matches safe pattern
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(branchName)) {
-    // Fallback to deterministic safe name
-    return `branch-${timestamp}`;
-  }
-
-  return branchName;
+    // Convert to lowercase, replace spaces/special chars with hyphens
+    let branchName = message
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+        .replace(/\s+/g, '-') // Replace spaces with hyphens
+        .replace(/-+/g, '-') // Replace multiple hyphens with single
+        .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+    // Ensure non-empty fallback
+    if (!branchName) {
+        branchName = 'task';
+    }
+    // Generate timestamp suffix (last 6 chars of base36 timestamp)
+    const timestamp = Date.now().toString(36).slice(-6);
+    const suffix = `-${timestamp}`;
+    // Limit length to ensure total length including suffix fits within 50 characters
+    const maxBaseLength = 50 - suffix.length;
+    if (branchName.length > maxBaseLength) {
+        branchName = branchName.substring(0, maxBaseLength);
+    }
+    // Remove any trailing hyphen after truncation and ensure no leading hyphen
+    branchName = branchName.replace(/-$/, '').replace(/^-+/, '');
+    // If still empty or starts with hyphen after cleanup, use fallback
+    if (!branchName || branchName.startsWith('-')) {
+        branchName = 'task';
+    }
+    // Combine base name with timestamp suffix
+    branchName = `${branchName}${suffix}`;
+    // Final validation: ensure it matches safe pattern
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(branchName)) {
+        // Fallback to deterministic safe name
+        return `branch-${timestamp}`;
+    }
+    return branchName;
 }
-
 /**
  * Validate a Git branch name
  * @param {string} branchName - Branch name to validate
  * @returns {{valid: boolean, error?: string}} - Validation result
  */
 function validateBranchName(branchName) {
-  if (!branchName || branchName.trim() === '') {
-    return { valid: false, error: 'Branch name cannot be empty' };
-  }
-
-  // Git branch name rules
-  const invalidPatterns = [
-    { pattern: /^\./, message: 'Branch name cannot start with a dot' },
-    { pattern: /\.$/, message: 'Branch name cannot end with a dot' },
-    { pattern: /\.\./, message: 'Branch name cannot contain consecutive dots (..)' },
-    { pattern: /\s/, message: 'Branch name cannot contain spaces' },
-    { pattern: /[~^:?*\[\\]/, message: 'Branch name cannot contain special characters: ~ ^ : ? * [ \\' },
-    { pattern: /@{/, message: 'Branch name cannot contain @{' },
-    { pattern: /\/$/, message: 'Branch name cannot end with a slash' },
-    { pattern: /^\//, message: 'Branch name cannot start with a slash' },
-    { pattern: /\/\//, message: 'Branch name cannot contain consecutive slashes' },
-    { pattern: /\.lock$/, message: 'Branch name cannot end with .lock' }
-  ];
-
-  for (const { pattern, message } of invalidPatterns) {
-    if (pattern.test(branchName)) {
-      return { valid: false, error: message };
+    if (!branchName || branchName.trim() === '') {
+        return { valid: false, error: 'Branch name cannot be empty' };
     }
-  }
-
-  // Check for ASCII control characters
-  if (/[\x00-\x1F\x7F]/.test(branchName)) {
-    return { valid: false, error: 'Branch name cannot contain control characters' };
-  }
-
-  return { valid: true };
+    // Git branch name rules
+    const invalidPatterns = [
+        { pattern: /^\./, message: 'Branch name cannot start with a dot' },
+        { pattern: /\.$/, message: 'Branch name cannot end with a dot' },
+        { pattern: /\.\./, message: 'Branch name cannot contain consecutive dots (..)' },
+        { pattern: /\s/, message: 'Branch name cannot contain spaces' },
+        { pattern: /[~^:?*\[\\]/, message: 'Branch name cannot contain special characters: ~ ^ : ? * [ \\' },
+        { pattern: /@{/, message: 'Branch name cannot contain @{' },
+        { pattern: /\/$/, message: 'Branch name cannot end with a slash' },
+        { pattern: /^\//, message: 'Branch name cannot start with a slash' },
+        { pattern: /\/\//, message: 'Branch name cannot contain consecutive slashes' },
+        { pattern: /\.lock$/, message: 'Branch name cannot end with .lock' }
+    ];
+    for (const { pattern, message } of invalidPatterns) {
+        if (pattern.test(branchName)) {
+            return { valid: false, error: message };
+        }
+    }
+    // Check for ASCII control characters
+    if (/[\x00-\x1F\x7F]/.test(branchName)) {
+        return { valid: false, error: 'Branch name cannot contain control characters' };
+    }
+    return { valid: true };
 }
-
 /**
  * Get recent commit messages from a repository
  * @param {string} projectPath - Path to the git repository
@@ -226,38 +198,33 @@ function validateBranchName(branchName) {
  * @returns {Promise<string[]>} - Array of commit messages
  */
 async function getCommitMessages(projectPath, limit = 5) {
-  return new Promise((resolve, reject) => {
-    const gitProcess = spawn('git', ['log', `-${limit}`, '--pretty=format:%s'], {
-      cwd: projectPath,
-      stdio: ['pipe', 'pipe', 'pipe']
+    return new Promise((resolve, reject) => {
+        const gitProcess = spawn('git', ['log', `-${limit}`, '--pretty=format:%s'], {
+            cwd: projectPath,
+            stdio: ['pipe', 'pipe', 'pipe']
+        });
+        let stdout = '';
+        let stderr = '';
+        gitProcess.stdout.on('data', (data) => {
+            stdout += data.toString();
+        });
+        gitProcess.stderr.on('data', (data) => {
+            stderr += data.toString();
+        });
+        gitProcess.on('close', (code) => {
+            if (code === 0) {
+                const messages = stdout.trim().split('\n').filter(msg => msg.length > 0);
+                resolve(messages);
+            }
+            else {
+                reject(new Error(`Failed to get commit messages: ${stderr}`));
+            }
+        });
+        gitProcess.on('error', (error) => {
+            reject(new Error(`Failed to execute git: ${error.message}`));
+        });
     });
-
-    let stdout = '';
-    let stderr = '';
-
-    gitProcess.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
-
-    gitProcess.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-
-    gitProcess.on('close', (code) => {
-      if (code === 0) {
-        const messages = stdout.trim().split('\n').filter(msg => msg.length > 0);
-        resolve(messages);
-      } else {
-        reject(new Error(`Failed to get commit messages: ${stderr}`));
-      }
-    });
-
-    gitProcess.on('error', (error) => {
-      reject(new Error(`Failed to execute git: ${error.message}`));
-    });
-  });
 }
-
 /**
  * Create a new branch on GitHub using the API
  * @param {Octokit} octokit - Octokit instance
@@ -268,34 +235,32 @@ async function getCommitMessages(projectPath, limit = 5) {
  * @returns {Promise<void>}
  */
 async function createGitHubBranch(octokit, owner, repo, branchName, baseBranch = 'main') {
-  try {
-    // Get the SHA of the base branch
-    const { data: ref } = await octokit.git.getRef({
-      owner,
-      repo,
-      ref: `heads/${baseBranch}`
-    });
-
-    const baseSha = ref.object.sha;
-
-    // Create the new branch
-    await octokit.git.createRef({
-      owner,
-      repo,
-      ref: `refs/heads/${branchName}`,
-      sha: baseSha
-    });
-
-    console.log(`✅ Created branch '${branchName}' on GitHub`);
-  } catch (error) {
-    if (error.status === 422 && error.message.includes('Reference already exists')) {
-      console.log(`ℹ️ Branch '${branchName}' already exists on GitHub`);
-    } else {
-      throw error;
+    try {
+        // Get the SHA of the base branch
+        const { data: ref } = await octokit.git.getRef({
+            owner,
+            repo,
+            ref: `heads/${baseBranch}`
+        });
+        const baseSha = ref.object.sha;
+        // Create the new branch
+        await octokit.git.createRef({
+            owner,
+            repo,
+            ref: `refs/heads/${branchName}`,
+            sha: baseSha
+        });
+        console.log(`✅ Created branch '${branchName}' on GitHub`);
     }
-  }
+    catch (error) {
+        if (error.status === 422 && error.message.includes('Reference already exists')) {
+            console.log(`ℹ️ Branch '${branchName}' already exists on GitHub`);
+        }
+        else {
+            throw error;
+        }
+    }
 }
-
 /**
  * Create a pull request on GitHub
  * @param {Octokit} octokit - Octokit instance
@@ -308,23 +273,20 @@ async function createGitHubBranch(octokit, owner, repo, branchName, baseBranch =
  * @returns {Promise<{number: number, url: string}>} - PR number and URL
  */
 async function createGitHubPR(octokit, owner, repo, branchName, title, body, baseBranch = 'main') {
-  const { data: pr } = await octokit.pulls.create({
-    owner,
-    repo,
-    title,
-    head: branchName,
-    base: baseBranch,
-    body
-  });
-
-  console.log(`✅ Created pull request #${pr.number}: ${pr.html_url}`);
-
-  return {
-    number: pr.number,
-    url: pr.html_url
-  };
+    const { data: pr } = await octokit.pulls.create({
+        owner,
+        repo,
+        title,
+        head: branchName,
+        base: baseBranch,
+        body
+    });
+    console.log(`✅ Created pull request #${pr.number}: ${pr.html_url}`);
+    return {
+        number: pr.number,
+        url: pr.html_url
+    };
 }
-
 /**
  * Clone a GitHub repository to a directory
  * @param {string} githubUrl - GitHub repository URL
@@ -333,281 +295,252 @@ async function createGitHubPR(octokit, owner, repo, branchName, title, body, bas
  * @returns {Promise<string>} - Path to the cloned repository
  */
 async function cloneGitHubRepo(githubUrl, githubToken = null, projectPath) {
-  return new Promise(async (resolve, reject) => {
-    try {
-      // Validate GitHub URL
-      if (!githubUrl || !githubUrl.includes('github.com')) {
-        throw new Error('Invalid GitHub URL');
-      }
-
-      const cloneDir = path.resolve(projectPath);
-
-      // Check if directory already exists
-      try {
-        await fs.access(cloneDir);
-        // Directory exists - check if it's a git repo with the same URL
+    return new Promise(async (resolve, reject) => {
         try {
-          const existingUrl = await getGitRemoteUrl(cloneDir);
-          const normalizedExisting = normalizeGitHubUrl(existingUrl);
-          const normalizedRequested = normalizeGitHubUrl(githubUrl);
-
-          if (normalizedExisting === normalizedRequested) {
-            console.log('✅ Repository already exists at path with correct URL');
-            return resolve(cloneDir);
-          } else {
-            throw new Error(`Directory ${cloneDir} already exists with a different repository (${existingUrl}). Expected: ${githubUrl}`);
-          }
-        } catch (gitError) {
-          throw new Error(`Directory ${cloneDir} already exists but is not a valid git repository or git command failed`);
+            // Validate GitHub URL
+            if (!githubUrl || !githubUrl.includes('github.com')) {
+                throw new Error('Invalid GitHub URL');
+            }
+            const cloneDir = path.resolve(projectPath);
+            // Check if directory already exists
+            try {
+                await fs.access(cloneDir);
+                // Directory exists - check if it's a git repo with the same URL
+                try {
+                    const existingUrl = await getGitRemoteUrl(cloneDir);
+                    const normalizedExisting = normalizeGitHubUrl(existingUrl);
+                    const normalizedRequested = normalizeGitHubUrl(githubUrl);
+                    if (normalizedExisting === normalizedRequested) {
+                        console.log('✅ Repository already exists at path with correct URL');
+                        return resolve(cloneDir);
+                    }
+                    else {
+                        throw new Error(`Directory ${cloneDir} already exists with a different repository (${existingUrl}). Expected: ${githubUrl}`);
+                    }
+                }
+                catch (gitError) {
+                    throw new Error(`Directory ${cloneDir} already exists but is not a valid git repository or git command failed`);
+                }
+            }
+            catch (accessError) {
+                // Directory doesn't exist - proceed with clone
+            }
+            // Ensure parent directory exists
+            await fs.mkdir(path.dirname(cloneDir), { recursive: true });
+            // Prepare the git clone URL with authentication if token is provided
+            let cloneUrl = githubUrl;
+            if (githubToken) {
+                // Convert HTTPS URL to authenticated URL
+                // Example: https://github.com/user/repo -> https://token@github.com/user/repo
+                cloneUrl = githubUrl.replace('https://github.com', `https://${githubToken}@github.com`);
+            }
+            console.log('🔄 Cloning repository:', githubUrl);
+            console.log('📁 Destination:', cloneDir);
+            // Execute git clone
+            const gitProcess = spawn('git', ['clone', '--depth', '1', cloneUrl, cloneDir], {
+                stdio: ['pipe', 'pipe', 'pipe']
+            });
+            let stdout = '';
+            let stderr = '';
+            gitProcess.stdout.on('data', (data) => {
+                stdout += data.toString();
+            });
+            gitProcess.stderr.on('data', (data) => {
+                stderr += data.toString();
+                console.log('Git stderr:', data.toString());
+            });
+            gitProcess.on('close', (code) => {
+                if (code === 0) {
+                    console.log('✅ Repository cloned successfully');
+                    resolve(cloneDir);
+                }
+                else {
+                    console.error('❌ Git clone failed:', stderr);
+                    reject(new Error(`Git clone failed: ${stderr}`));
+                }
+            });
+            gitProcess.on('error', (error) => {
+                reject(new Error(`Failed to execute git: ${error.message}`));
+            });
         }
-      } catch (accessError) {
-        // Directory doesn't exist - proceed with clone
-      }
-
-      // Ensure parent directory exists
-      await fs.mkdir(path.dirname(cloneDir), { recursive: true });
-
-      // Prepare the git clone URL with authentication if token is provided
-      let cloneUrl = githubUrl;
-      if (githubToken) {
-        // Convert HTTPS URL to authenticated URL
-        // Example: https://github.com/user/repo -> https://token@github.com/user/repo
-        cloneUrl = githubUrl.replace('https://github.com', `https://${githubToken}@github.com`);
-      }
-
-      console.log('🔄 Cloning repository:', githubUrl);
-      console.log('📁 Destination:', cloneDir);
-
-      // Execute git clone
-      const gitProcess = spawn('git', ['clone', '--depth', '1', cloneUrl, cloneDir], {
-        stdio: ['pipe', 'pipe', 'pipe']
-      });
-
-      let stdout = '';
-      let stderr = '';
-
-      gitProcess.stdout.on('data', (data) => {
-        stdout += data.toString();
-      });
-
-      gitProcess.stderr.on('data', (data) => {
-        stderr += data.toString();
-        console.log('Git stderr:', data.toString());
-      });
-
-      gitProcess.on('close', (code) => {
-        if (code === 0) {
-          console.log('✅ Repository cloned successfully');
-          resolve(cloneDir);
-        } else {
-          console.error('❌ Git clone failed:', stderr);
-          reject(new Error(`Git clone failed: ${stderr}`));
+        catch (error) {
+            reject(error);
         }
-      });
-
-      gitProcess.on('error', (error) => {
-        reject(new Error(`Failed to execute git: ${error.message}`));
-      });
-    } catch (error) {
-      reject(error);
-    }
-  });
+    });
 }
-
 /**
  * Clean up a temporary project directory and its Claude session
  * @param {string} projectPath - Path to the project directory
  * @param {string} sessionId - Session ID to clean up
  */
 async function cleanupProject(projectPath, sessionId = null) {
-  try {
-    // Only clean up projects in the external-projects directory
-    if (!projectPath.includes('.claude/external-projects')) {
-      console.warn('⚠️ Refusing to clean up non-external project:', projectPath);
-      return;
+    try {
+        // Only clean up projects in the external-projects directory
+        if (!projectPath.includes('.claude/external-projects')) {
+            console.warn('⚠️ Refusing to clean up non-external project:', projectPath);
+            return;
+        }
+        console.log('🧹 Cleaning up project:', projectPath);
+        await fs.rm(projectPath, { recursive: true, force: true });
+        console.log('✅ Project cleaned up');
+        // Also clean up the Claude session directory if sessionId provided
+        if (sessionId) {
+            try {
+                const sessionPath = path.join(os.homedir(), '.claude', 'sessions', sessionId);
+                console.log('🧹 Cleaning up session directory:', sessionPath);
+                await fs.rm(sessionPath, { recursive: true, force: true });
+                console.log('✅ Session directory cleaned up');
+            }
+            catch (error) {
+                console.error('⚠️ Failed to clean up session directory:', error.message);
+            }
+        }
     }
-
-    console.log('🧹 Cleaning up project:', projectPath);
-    await fs.rm(projectPath, { recursive: true, force: true });
-    console.log('✅ Project cleaned up');
-
-    // Also clean up the Claude session directory if sessionId provided
-    if (sessionId) {
-      try {
-        const sessionPath = path.join(os.homedir(), '.claude', 'sessions', sessionId);
-        console.log('🧹 Cleaning up session directory:', sessionPath);
-        await fs.rm(sessionPath, { recursive: true, force: true });
-        console.log('✅ Session directory cleaned up');
-      } catch (error) {
-        console.error('⚠️ Failed to clean up session directory:', error.message);
-      }
+    catch (error) {
+        console.error('❌ Failed to clean up project:', error);
     }
-  } catch (error) {
-    console.error('❌ Failed to clean up project:', error);
-  }
 }
-
 /**
  * SSE Stream Writer - Adapts SDK/CLI output to Server-Sent Events
  */
 class SSEStreamWriter {
-  constructor(res, userId = null) {
-    this.res = res;
-    this.sessionId = null;
-    this.userId = userId;
-    this.isSSEStreamWriter = true;  // Marker for transport detection
-  }
-
-  send(data) {
-    if (this.res.writableEnded) {
-      return;
+    constructor(res, userId = null) {
+        this.res = res;
+        this.sessionId = null;
+        this.userId = userId;
+        this.isSSEStreamWriter = true; // Marker for transport detection
     }
-
-    // Format as SSE - providers send raw objects, we stringify
-    this.res.write(`data: ${JSON.stringify(data)}\n\n`);
-  }
-
-  end() {
-    if (!this.res.writableEnded) {
-      this.res.write('data: {"type":"done"}\n\n');
-      this.res.end();
+    send(data) {
+        if (this.res.writableEnded) {
+            return;
+        }
+        // Format as SSE - providers send raw objects, we stringify
+        this.res.write(`data: ${JSON.stringify(data)}\n\n`);
     }
-  }
-
-  setSessionId(sessionId) {
-    this.sessionId = sessionId;
-    this.send({ type: 'session-id', sessionId });
-  }
-
-  getSessionId() {
-    return this.sessionId;
-  }
+    end() {
+        if (!this.res.writableEnded) {
+            this.res.write('data: {"type":"done"}\n\n');
+            this.res.end();
+        }
+    }
+    setSessionId(sessionId) {
+        this.sessionId = sessionId;
+        this.send({ type: 'session-id', sessionId });
+    }
+    getSessionId() {
+        return this.sessionId;
+    }
 }
-
 /**
  * Non-streaming response collector
  */
 class ResponseCollector {
-  constructor(userId = null) {
-    this.messages = [];
-    this.sessionId = null;
-    this.userId = userId;
-  }
-
-  send(data) {
-    // Store ALL messages for now - we'll filter when returning
-    this.messages.push(data);
-
-    // Extract sessionId if present
-    if (typeof data === 'string') {
-      try {
-        const parsed = JSON.parse(data);
-        if (parsed.sessionId) {
-          this.sessionId = parsed.sessionId;
-        }
-      } catch (e) {
-        // Not JSON, ignore
-      }
-    } else if (data && data.sessionId) {
-      this.sessionId = data.sessionId;
+    constructor(userId = null) {
+        this.messages = [];
+        this.sessionId = null;
+        this.userId = userId;
     }
-  }
-
-  end() {
-    // Do nothing - we'll collect all messages
-  }
-
-  setSessionId(sessionId) {
-    this.sessionId = sessionId;
-  }
-
-  getSessionId() {
-    return this.sessionId;
-  }
-
-  getMessages() {
-    return this.messages;
-  }
-
-  /**
-   * Get filtered assistant messages only
-   */
-  getAssistantMessages() {
-    const assistantMessages = [];
-
-    for (const msg of this.messages) {
-      // Skip initial status message
-      if (msg && msg.type === 'status') {
-        continue;
-      }
-
-      // Handle JSON strings
-      if (typeof msg === 'string') {
-        try {
-          const parsed = JSON.parse(msg);
-          // Only include claude-response messages with assistant type
-          if (parsed.type === 'claude-response' && parsed.data && parsed.data.type === 'assistant') {
-            assistantMessages.push(parsed.data);
-          }
-        } catch (e) {
-          // Not JSON, skip
+    send(data) {
+        // Store ALL messages for now - we'll filter when returning
+        this.messages.push(data);
+        // Extract sessionId if present
+        if (typeof data === 'string') {
+            try {
+                const parsed = JSON.parse(data);
+                if (parsed.sessionId) {
+                    this.sessionId = parsed.sessionId;
+                }
+            }
+            catch (e) {
+                // Not JSON, ignore
+            }
         }
-      }
+        else if (data && data.sessionId) {
+            this.sessionId = data.sessionId;
+        }
     }
-
-    return assistantMessages;
-  }
-
-  /**
-   * Calculate total tokens from all messages
-   */
-  getTotalTokens() {
-    let totalInput = 0;
-    let totalOutput = 0;
-    let totalCacheRead = 0;
-    let totalCacheCreation = 0;
-
-    for (const msg of this.messages) {
-      let data = msg;
-
-      // Parse if string
-      if (typeof msg === 'string') {
-        try {
-          data = JSON.parse(msg);
-        } catch (e) {
-          continue;
-        }
-      }
-
-      // Extract usage from claude-response messages
-      if (data && data.type === 'claude-response' && data.data) {
-        const msgData = data.data;
-        if (msgData.message && msgData.message.usage) {
-          const usage = msgData.message.usage;
-          totalInput += usage.input_tokens || 0;
-          totalOutput += usage.output_tokens || 0;
-          totalCacheRead += usage.cache_read_input_tokens || 0;
-          totalCacheCreation += usage.cache_creation_input_tokens || 0;
-        }
-      }
+    end() {
+        // Do nothing - we'll collect all messages
     }
-
-    const inputTokens = totalInput + totalCacheRead + totalCacheCreation;
-
-    return {
-      inputTokens,
-      outputTokens: totalOutput,
-      cacheReadTokens: totalCacheRead,
-      cacheCreationTokens: totalCacheCreation,
-      totalTokens: inputTokens + totalOutput
-    };
-  }
+    setSessionId(sessionId) {
+        this.sessionId = sessionId;
+    }
+    getSessionId() {
+        return this.sessionId;
+    }
+    getMessages() {
+        return this.messages;
+    }
+    /**
+     * Get filtered assistant messages only
+     */
+    getAssistantMessages() {
+        const assistantMessages = [];
+        for (const msg of this.messages) {
+            // Skip initial status message
+            if (msg && msg.type === 'status') {
+                continue;
+            }
+            // Handle JSON strings
+            if (typeof msg === 'string') {
+                try {
+                    const parsed = JSON.parse(msg);
+                    // Only include claude-response messages with assistant type
+                    if (parsed.type === 'claude-response' && parsed.data && parsed.data.type === 'assistant') {
+                        assistantMessages.push(parsed.data);
+                    }
+                }
+                catch (e) {
+                    // Not JSON, skip
+                }
+            }
+        }
+        return assistantMessages;
+    }
+    /**
+     * Calculate total tokens from all messages
+     */
+    getTotalTokens() {
+        let totalInput = 0;
+        let totalOutput = 0;
+        let totalCacheRead = 0;
+        let totalCacheCreation = 0;
+        for (const msg of this.messages) {
+            let data = msg;
+            // Parse if string
+            if (typeof msg === 'string') {
+                try {
+                    data = JSON.parse(msg);
+                }
+                catch (e) {
+                    continue;
+                }
+            }
+            // Extract usage from claude-response messages
+            if (data && data.type === 'claude-response' && data.data) {
+                const msgData = data.data;
+                if (msgData.message && msgData.message.usage) {
+                    const usage = msgData.message.usage;
+                    totalInput += usage.input_tokens || 0;
+                    totalOutput += usage.output_tokens || 0;
+                    totalCacheRead += usage.cache_read_input_tokens || 0;
+                    totalCacheCreation += usage.cache_creation_input_tokens || 0;
+                }
+            }
+        }
+        const inputTokens = totalInput + totalCacheRead + totalCacheCreation;
+        return {
+            inputTokens,
+            outputTokens: totalOutput,
+            cacheReadTokens: totalCacheRead,
+            cacheCreationTokens: totalCacheCreation,
+            totalTokens: inputTokens + totalOutput
+        };
+    }
 }
-
 // ===============================
 // External API Endpoint
 // ===============================
-
 /**
  * POST /api/agent
  *
@@ -843,414 +776,379 @@ class ResponseCollector {
  *   }
  */
 router.post('/', validateExternalApiKey, async (req, res) => {
-  const { githubUrl, projectPath, message, provider = 'claude', model, githubToken, branchName, sessionId } = req.body;
-
-  // Parse stream and cleanup as booleans (handle string "true"/"false" from curl)
-  const stream = req.body.stream === undefined ? true : (req.body.stream === true || req.body.stream === 'true');
-  const cleanup = req.body.cleanup === undefined ? true : (req.body.cleanup === true || req.body.cleanup === 'true');
-
-  // If branchName is provided, automatically enable createBranch
-  const createBranch = branchName ? true : (req.body.createBranch === true || req.body.createBranch === 'true');
-  const createPR = req.body.createPR === true || req.body.createPR === 'true';
-
-  // Validate inputs
-  if (!githubUrl && !projectPath) {
-    return res.status(400).json({ error: 'Either githubUrl or projectPath is required' });
-  }
-
-  if (!message || !message.trim()) {
-    return res.status(400).json({ error: 'message is required' });
-  }
-
-  if (!['claude', 'cursor', 'codex', 'gemini', 'opencode'].includes(provider)) {
-    return res.status(400).json({ error: 'provider must be "claude", "cursor", "codex", "gemini", or "opencode"' });
-  }
-
-  // Validate GitHub branch/PR creation requirements
-  // Allow branch/PR creation with projectPath as long as it has a GitHub remote
-  if ((createBranch || createPR) && !githubUrl && !projectPath) {
-    return res.status(400).json({ error: 'createBranch and createPR require either githubUrl or projectPath with a GitHub remote' });
-  }
-
-  let finalProjectPath = null;
-  let writer = null;
-
-  try {
-    // Determine the final project path
-    if (githubUrl) {
-      // Clone repository (to projectPath if provided, otherwise generate path)
-      const tokenToUse = githubToken || githubTokensDb.getActiveGithubToken(req.user.id);
-
-      let targetPath;
-      if (projectPath) {
-        targetPath = projectPath;
-      } else {
-        // Generate a unique path for cloning
-        const repoHash = crypto.createHash('md5').update(githubUrl + Date.now()).digest('hex');
-        targetPath = path.join(os.homedir(), '.claude', 'external-projects', repoHash);
-      }
-
-      finalProjectPath = await cloneGitHubRepo(githubUrl.trim(), tokenToUse, targetPath);
-    } else {
-      // Use existing project path
-      finalProjectPath = normalizeProjectPath(path.resolve(projectPath));
-
-      // Verify the path exists
-      try {
-        await fs.access(finalProjectPath);
-      } catch (error) {
-        throw new Error(`Project path does not exist: ${finalProjectPath}`);
-      }
+    const { githubUrl, projectPath, message, provider = 'claude', model, githubToken, branchName, sessionId } = req.body;
+    // Parse stream and cleanup as booleans (handle string "true"/"false" from curl)
+    const stream = req.body.stream === undefined ? true : (req.body.stream === true || req.body.stream === 'true');
+    const cleanup = req.body.cleanup === undefined ? true : (req.body.cleanup === true || req.body.cleanup === 'true');
+    // If branchName is provided, automatically enable createBranch
+    const createBranch = branchName ? true : (req.body.createBranch === true || req.body.createBranch === 'true');
+    const createPR = req.body.createPR === true || req.body.createPR === 'true';
+    // Validate inputs
+    if (!githubUrl && !projectPath) {
+        return res.status(400).json({ error: 'Either githubUrl or projectPath is required' });
     }
-
-    finalProjectPath = normalizeProjectPath(finalProjectPath);
-
-    // Register project path in DB (or reuse existing active registration)
-    const registrationResult = projectsDb.createProjectPath(finalProjectPath, null);
-    if (registrationResult.outcome === 'active_conflict') {
-      console.log('Project registration already exists for:', finalProjectPath);
-    } else {
-      console.log('Project registered:', registrationResult.project);
+    if (!message || !message.trim()) {
+        return res.status(400).json({ error: 'message is required' });
     }
-
-    // Set up writer based on streaming mode
-    if (stream) {
-      // Set up SSE headers for streaming
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
-
-      writer = new SSEStreamWriter(res, req.user.id);
-
-      // Send initial status
-      writer.send({
-        type: 'status',
-        message: githubUrl ? 'Repository cloned and session started' : 'Session started',
-        projectPath: finalProjectPath
-      });
-    } else {
-      // Non-streaming mode: collect messages
-      writer = new ResponseCollector(req.user.id);
-
-      // Collect initial status message
-      writer.send({
-        type: 'status',
-        message: githubUrl ? 'Repository cloned and session started' : 'Session started',
-        projectPath: finalProjectPath
-      });
+    if (!['claude', 'cursor', 'codex', 'gemini', 'opencode'].includes(provider)) {
+        return res.status(400).json({ error: 'provider must be "claude", "cursor", "codex", "gemini", or "opencode"' });
     }
-
-    const codexModels = (await providerModelsService.getProviderModels('codex')).models;
-    const geminiModels = (await providerModelsService.getProviderModels('gemini')).models;
-    const opencodeModels = (await providerModelsService.getProviderModels('opencode')).models;
-
-    // Start the appropriate session
-    if (provider === 'claude') {
-      console.log('🤖 Starting Claude SDK session');
-
-      await queryClaudeSDK(message.trim(), {
-        projectPath: finalProjectPath,
-        cwd: finalProjectPath,
-        sessionId: sessionId || null,
-        model: model,
-        permissionMode: 'bypassPermissions' // Bypass all permissions for API calls
-      }, writer);
-
-    } else if (provider === 'cursor') {
-      console.log('🖱️ Starting Cursor CLI session');
-
-      await spawnCursor(message.trim(), {
-        projectPath: finalProjectPath,
-        cwd: finalProjectPath,
-        sessionId: sessionId || null,
-        model: model || undefined,
-        skipPermissions: true // Bypass permissions for Cursor
-      }, writer);
-    } else if (provider === 'codex') {
-      console.log('🤖 Starting Codex SDK session');
-
-      await queryCodex(message.trim(), {
-        projectPath: finalProjectPath,
-        cwd: finalProjectPath,
-        sessionId: sessionId || null,
-        model: model || codexModels.DEFAULT,
-        permissionMode: 'bypassPermissions'
-      }, writer);
-    } else if (provider === 'gemini') {
-      console.log('✨ Starting Gemini CLI session');
-
-      await spawnGemini(message.trim(), {
-        projectPath: finalProjectPath,
-        cwd: finalProjectPath,
-        sessionId: sessionId || null,
-        model: model || geminiModels.DEFAULT,
-        skipPermissions: true // CLI mode bypasses permissions
-      }, writer);
-    } else if (provider === 'opencode') {
-      console.log('Starting OpenCode CLI session');
-
-      await spawnOpenCode(message.trim(), {
-        projectPath: finalProjectPath,
-        cwd: finalProjectPath,
-        sessionId: sessionId || null,
-        model: model || opencodeModels.DEFAULT
-      }, writer);
+    // Validate GitHub branch/PR creation requirements
+    // Allow branch/PR creation with projectPath as long as it has a GitHub remote
+    if ((createBranch || createPR) && !githubUrl && !projectPath) {
+        return res.status(400).json({ error: 'createBranch and createPR require either githubUrl or projectPath with a GitHub remote' });
     }
-
-    // Handle GitHub branch and PR creation after successful agent completion
-    let branchInfo = null;
-    let prInfo = null;
-
-    if (createBranch || createPR) {
-      try {
-        console.log('🔄 Starting GitHub branch/PR creation workflow...');
-
-        // Get GitHub token
-        const tokenToUse = githubToken || githubTokensDb.getActiveGithubToken(req.user.id);
-
-        if (!tokenToUse) {
-          throw new Error('GitHub token required for branch/PR creation. Please configure a GitHub token in settings.');
-        }
-
-        // Initialize Octokit
-        const octokit = new Octokit({ auth: tokenToUse });
-
-        // Get GitHub URL - either from parameter or from git remote
-        let repoUrl = githubUrl;
-        if (!repoUrl) {
-          console.log('🔍 Getting GitHub URL from git remote...');
-          try {
-            repoUrl = await getGitRemoteUrl(finalProjectPath);
-            if (!repoUrl.includes('github.com')) {
-              throw new Error('Project does not have a GitHub remote configured');
+    let finalProjectPath = null;
+    let writer = null;
+    try {
+        // Determine the final project path
+        if (githubUrl) {
+            // Clone repository (to projectPath if provided, otherwise generate path)
+            const tokenToUse = githubToken || githubTokensDb.getActiveGithubToken(req.user.id);
+            let targetPath;
+            if (projectPath) {
+                targetPath = projectPath;
             }
-            console.log(`✅ Found GitHub remote: ${repoUrl}`);
-          } catch (error) {
-            throw new Error(`Failed to get GitHub remote URL: ${error.message}`);
-          }
+            else {
+                // Generate a unique path for cloning
+                const repoHash = crypto.createHash('md5').update(githubUrl + Date.now()).digest('hex');
+                targetPath = path.join(os.homedir(), '.claude', 'external-projects', repoHash);
+            }
+            finalProjectPath = await cloneGitHubRepo(githubUrl.trim(), tokenToUse, targetPath);
         }
-
-        // Parse GitHub URL to get owner and repo
-        const { owner, repo } = parseGitHubUrl(repoUrl);
-        console.log(`📦 Repository: ${owner}/${repo}`);
-
-        // Use provided branch name or auto-generate from message
-        const finalBranchName = branchName || autogenerateBranchName(message);
-        if (branchName) {
-          console.log(`🌿 Using provided branch name: ${finalBranchName}`);
-
-          // Validate custom branch name
-          const validation = validateBranchName(finalBranchName);
-          if (!validation.valid) {
-            throw new Error(`Invalid branch name: ${validation.error}`);
-          }
-        } else {
-          console.log(`🌿 Auto-generated branch name: ${finalBranchName}`);
+        else {
+            // Use existing project path
+            finalProjectPath = normalizeProjectPath(path.resolve(projectPath));
+            // Verify the path exists
+            try {
+                await fs.access(finalProjectPath);
+            }
+            catch (error) {
+                throw new Error(`Project path does not exist: ${finalProjectPath}`);
+            }
         }
-
-        if (createBranch) {
-          // Create and checkout the new branch locally
-          console.log('🔄 Creating local branch...');
-          const checkoutProcess = spawn('git', ['checkout', '-b', finalBranchName], {
-            cwd: finalProjectPath,
-            stdio: 'pipe'
-          });
-
-          await new Promise((resolve, reject) => {
-            let stderr = '';
-            checkoutProcess.stderr.on('data', (data) => { stderr += data.toString(); });
-            checkoutProcess.on('close', (code) => {
-              if (code === 0) {
-                console.log(`✅ Created and checked out local branch '${finalBranchName}'`);
-                resolve();
-              } else {
-                // Branch might already exist locally, try to checkout
-                if (stderr.includes('already exists')) {
-                  console.log(`ℹ️ Branch '${finalBranchName}' already exists locally, checking out...`);
-                  const checkoutExisting = spawn('git', ['checkout', finalBranchName], {
-                    cwd: finalProjectPath,
-                    stdio: 'pipe'
-                  });
-                  checkoutExisting.on('close', (checkoutCode) => {
-                    if (checkoutCode === 0) {
-                      console.log(`✅ Checked out existing branch '${finalBranchName}'`);
-                      resolve();
-                    } else {
-                      reject(new Error(`Failed to checkout existing branch: ${stderr}`));
+        finalProjectPath = normalizeProjectPath(finalProjectPath);
+        // Register project path in DB (or reuse existing active registration)
+        const registrationResult = projectsDb.createProjectPath(finalProjectPath, null);
+        if (registrationResult.outcome === 'active_conflict') {
+            console.log('Project registration already exists for:', finalProjectPath);
+        }
+        else {
+            console.log('Project registered:', registrationResult.project);
+        }
+        // Set up writer based on streaming mode
+        if (stream) {
+            // Set up SSE headers for streaming
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+            writer = new SSEStreamWriter(res, req.user.id);
+            // Send initial status
+            writer.send({
+                type: 'status',
+                message: githubUrl ? 'Repository cloned and session started' : 'Session started',
+                projectPath: finalProjectPath
+            });
+        }
+        else {
+            // Non-streaming mode: collect messages
+            writer = new ResponseCollector(req.user.id);
+            // Collect initial status message
+            writer.send({
+                type: 'status',
+                message: githubUrl ? 'Repository cloned and session started' : 'Session started',
+                projectPath: finalProjectPath
+            });
+        }
+        const codexModels = (await providerModelsService.getProviderModels('codex')).models;
+        const geminiModels = (await providerModelsService.getProviderModels('gemini')).models;
+        const opencodeModels = (await providerModelsService.getProviderModels('opencode')).models;
+        // Start the appropriate session
+        if (provider === 'claude') {
+            console.log('🤖 Starting Claude SDK session');
+            await queryClaudeSDK(message.trim(), {
+                projectPath: finalProjectPath,
+                cwd: finalProjectPath,
+                sessionId: sessionId || null,
+                model: model,
+                permissionMode: 'bypassPermissions' // Bypass all permissions for API calls
+            }, writer);
+        }
+        else if (provider === 'cursor') {
+            console.log('🖱️ Starting Cursor CLI session');
+            await spawnCursor(message.trim(), {
+                projectPath: finalProjectPath,
+                cwd: finalProjectPath,
+                sessionId: sessionId || null,
+                model: model || undefined,
+                skipPermissions: true // Bypass permissions for Cursor
+            }, writer);
+        }
+        else if (provider === 'codex') {
+            console.log('🤖 Starting Codex SDK session');
+            await queryCodex(message.trim(), {
+                projectPath: finalProjectPath,
+                cwd: finalProjectPath,
+                sessionId: sessionId || null,
+                model: model || codexModels.DEFAULT,
+                permissionMode: 'bypassPermissions'
+            }, writer);
+        }
+        else if (provider === 'gemini') {
+            console.log('✨ Starting Gemini CLI session');
+            await spawnGemini(message.trim(), {
+                projectPath: finalProjectPath,
+                cwd: finalProjectPath,
+                sessionId: sessionId || null,
+                model: model || geminiModels.DEFAULT,
+                skipPermissions: true // CLI mode bypasses permissions
+            }, writer);
+        }
+        else if (provider === 'opencode') {
+            console.log('Starting OpenCode CLI session');
+            await spawnOpenCode(message.trim(), {
+                projectPath: finalProjectPath,
+                cwd: finalProjectPath,
+                sessionId: sessionId || null,
+                model: model || opencodeModels.DEFAULT
+            }, writer);
+        }
+        // Handle GitHub branch and PR creation after successful agent completion
+        let branchInfo = null;
+        let prInfo = null;
+        if (createBranch || createPR) {
+            try {
+                console.log('🔄 Starting GitHub branch/PR creation workflow...');
+                // Get GitHub token
+                const tokenToUse = githubToken || githubTokensDb.getActiveGithubToken(req.user.id);
+                if (!tokenToUse) {
+                    throw new Error('GitHub token required for branch/PR creation. Please configure a GitHub token in settings.');
+                }
+                // Initialize Octokit
+                const octokit = new Octokit({ auth: tokenToUse });
+                // Get GitHub URL - either from parameter or from git remote
+                let repoUrl = githubUrl;
+                if (!repoUrl) {
+                    console.log('🔍 Getting GitHub URL from git remote...');
+                    try {
+                        repoUrl = await getGitRemoteUrl(finalProjectPath);
+                        if (!repoUrl.includes('github.com')) {
+                            throw new Error('Project does not have a GitHub remote configured');
+                        }
+                        console.log(`✅ Found GitHub remote: ${repoUrl}`);
                     }
-                  });
-                } else {
-                  reject(new Error(`Failed to create branch: ${stderr}`));
+                    catch (error) {
+                        throw new Error(`Failed to get GitHub remote URL: ${error.message}`);
+                    }
                 }
-              }
-            });
-          });
-
-          // Push the branch to remote
-          console.log('🔄 Pushing branch to remote...');
-          const pushProcess = spawn('git', ['push', '-u', 'origin', finalBranchName], {
-            cwd: finalProjectPath,
-            stdio: 'pipe'
-          });
-
-          await new Promise((resolve, reject) => {
-            let stderr = '';
-            let stdout = '';
-            pushProcess.stdout.on('data', (data) => { stdout += data.toString(); });
-            pushProcess.stderr.on('data', (data) => { stderr += data.toString(); });
-            pushProcess.on('close', (code) => {
-              if (code === 0) {
-                console.log(`✅ Pushed branch '${finalBranchName}' to remote`);
-                resolve();
-              } else {
-                // Check if branch exists on remote but has different commits
-                if (stderr.includes('already exists') || stderr.includes('up-to-date')) {
-                  console.log(`ℹ️ Branch '${finalBranchName}' already exists on remote, using existing branch`);
-                  resolve();
-                } else {
-                  reject(new Error(`Failed to push branch: ${stderr}`));
+                // Parse GitHub URL to get owner and repo
+                const { owner, repo } = parseGitHubUrl(repoUrl);
+                console.log(`📦 Repository: ${owner}/${repo}`);
+                // Use provided branch name or auto-generate from message
+                const finalBranchName = branchName || autogenerateBranchName(message);
+                if (branchName) {
+                    console.log(`🌿 Using provided branch name: ${finalBranchName}`);
+                    // Validate custom branch name
+                    const validation = validateBranchName(finalBranchName);
+                    if (!validation.valid) {
+                        throw new Error(`Invalid branch name: ${validation.error}`);
+                    }
                 }
-              }
-            });
-          });
-
-          branchInfo = {
-            name: finalBranchName,
-            url: `https://github.com/${owner}/${repo}/tree/${finalBranchName}`
-          };
+                else {
+                    console.log(`🌿 Auto-generated branch name: ${finalBranchName}`);
+                }
+                if (createBranch) {
+                    // Create and checkout the new branch locally
+                    console.log('🔄 Creating local branch...');
+                    const checkoutProcess = spawn('git', ['checkout', '-b', finalBranchName], {
+                        cwd: finalProjectPath,
+                        stdio: 'pipe'
+                    });
+                    await new Promise((resolve, reject) => {
+                        let stderr = '';
+                        checkoutProcess.stderr.on('data', (data) => { stderr += data.toString(); });
+                        checkoutProcess.on('close', (code) => {
+                            if (code === 0) {
+                                console.log(`✅ Created and checked out local branch '${finalBranchName}'`);
+                                resolve();
+                            }
+                            else {
+                                // Branch might already exist locally, try to checkout
+                                if (stderr.includes('already exists')) {
+                                    console.log(`ℹ️ Branch '${finalBranchName}' already exists locally, checking out...`);
+                                    const checkoutExisting = spawn('git', ['checkout', finalBranchName], {
+                                        cwd: finalProjectPath,
+                                        stdio: 'pipe'
+                                    });
+                                    checkoutExisting.on('close', (checkoutCode) => {
+                                        if (checkoutCode === 0) {
+                                            console.log(`✅ Checked out existing branch '${finalBranchName}'`);
+                                            resolve();
+                                        }
+                                        else {
+                                            reject(new Error(`Failed to checkout existing branch: ${stderr}`));
+                                        }
+                                    });
+                                }
+                                else {
+                                    reject(new Error(`Failed to create branch: ${stderr}`));
+                                }
+                            }
+                        });
+                    });
+                    // Push the branch to remote
+                    console.log('🔄 Pushing branch to remote...');
+                    const pushProcess = spawn('git', ['push', '-u', 'origin', finalBranchName], {
+                        cwd: finalProjectPath,
+                        stdio: 'pipe'
+                    });
+                    await new Promise((resolve, reject) => {
+                        let stderr = '';
+                        let stdout = '';
+                        pushProcess.stdout.on('data', (data) => { stdout += data.toString(); });
+                        pushProcess.stderr.on('data', (data) => { stderr += data.toString(); });
+                        pushProcess.on('close', (code) => {
+                            if (code === 0) {
+                                console.log(`✅ Pushed branch '${finalBranchName}' to remote`);
+                                resolve();
+                            }
+                            else {
+                                // Check if branch exists on remote but has different commits
+                                if (stderr.includes('already exists') || stderr.includes('up-to-date')) {
+                                    console.log(`ℹ️ Branch '${finalBranchName}' already exists on remote, using existing branch`);
+                                    resolve();
+                                }
+                                else {
+                                    reject(new Error(`Failed to push branch: ${stderr}`));
+                                }
+                            }
+                        });
+                    });
+                    branchInfo = {
+                        name: finalBranchName,
+                        url: `https://github.com/${owner}/${repo}/tree/${finalBranchName}`
+                    };
+                }
+                if (createPR) {
+                    // Get commit messages to generate PR description
+                    console.log('🔄 Generating PR title and description...');
+                    const commitMessages = await getCommitMessages(finalProjectPath, 5);
+                    // Use the first commit message as the PR title, or fallback to the agent message
+                    const prTitle = commitMessages.length > 0 ? commitMessages[0] : message;
+                    // Generate PR body from commit messages
+                    let prBody = '## Changes\n\n';
+                    if (commitMessages.length > 0) {
+                        prBody += commitMessages.map(msg => `- ${msg}`).join('\n');
+                    }
+                    else {
+                        prBody += `Agent task: ${message}`;
+                    }
+                    prBody += '\n\n---\n*This pull request was automatically created by CloudCLI.ai Agent.*';
+                    console.log(`📝 PR Title: ${prTitle}`);
+                    // Create the pull request
+                    console.log('🔄 Creating pull request...');
+                    prInfo = await createGitHubPR(octokit, owner, repo, finalBranchName, prTitle, prBody, 'main');
+                }
+                // Send branch/PR info in response
+                if (stream) {
+                    if (branchInfo) {
+                        writer.send({
+                            type: 'github-branch',
+                            branch: branchInfo
+                        });
+                    }
+                    if (prInfo) {
+                        writer.send({
+                            type: 'github-pr',
+                            pullRequest: prInfo
+                        });
+                    }
+                }
+            }
+            catch (error) {
+                console.error('❌ GitHub branch/PR creation error:', error);
+                // Send error but don't fail the entire request
+                if (stream) {
+                    writer.send({
+                        type: 'github-error',
+                        error: error.message
+                    });
+                }
+                // Store error info for non-streaming response
+                if (!stream) {
+                    branchInfo = { error: error.message };
+                    prInfo = { error: error.message };
+                }
+            }
         }
-
-        if (createPR) {
-          // Get commit messages to generate PR description
-          console.log('🔄 Generating PR title and description...');
-          const commitMessages = await getCommitMessages(finalProjectPath, 5);
-
-          // Use the first commit message as the PR title, or fallback to the agent message
-          const prTitle = commitMessages.length > 0 ? commitMessages[0] : message;
-
-          // Generate PR body from commit messages
-          let prBody = '## Changes\n\n';
-          if (commitMessages.length > 0) {
-            prBody += commitMessages.map(msg => `- ${msg}`).join('\n');
-          } else {
-            prBody += `Agent task: ${message}`;
-          }
-          prBody += '\n\n---\n*This pull request was automatically created by CloudCLI.ai Agent.*';
-
-          console.log(`📝 PR Title: ${prTitle}`);
-
-          // Create the pull request
-          console.log('🔄 Creating pull request...');
-          prInfo = await createGitHubPR(octokit, owner, repo, finalBranchName, prTitle, prBody, 'main');
-        }
-
-        // Send branch/PR info in response
+        // Handle response based on streaming mode
         if (stream) {
-          if (branchInfo) {
-            writer.send({
-              type: 'github-branch',
-              branch: branchInfo
-            });
-          }
-          if (prInfo) {
-            writer.send({
-              type: 'github-pr',
-              pullRequest: prInfo
-            });
-          }
+            // Streaming mode: end the SSE stream
+            writer.end();
         }
-
-      } catch (error) {
-        console.error('❌ GitHub branch/PR creation error:', error);
-
-        // Send error but don't fail the entire request
+        else {
+            // Non-streaming mode: send filtered messages and token summary as JSON
+            const assistantMessages = writer.getAssistantMessages();
+            const tokenSummary = writer.getTotalTokens();
+            const response = {
+                success: true,
+                sessionId: writer.getSessionId(),
+                messages: assistantMessages,
+                tokens: tokenSummary,
+                projectPath: finalProjectPath
+            };
+            // Add branch/PR info if created
+            if (branchInfo) {
+                response.branch = branchInfo;
+            }
+            if (prInfo) {
+                response.pullRequest = prInfo;
+            }
+            res.json(response);
+        }
+        // Clean up if requested
+        if (cleanup && githubUrl) {
+            // Only cleanup if we cloned a repo (not for existing project paths)
+            const sessionIdForCleanup = writer.getSessionId();
+            setTimeout(() => {
+                cleanupProject(finalProjectPath, sessionIdForCleanup);
+            }, 5000);
+        }
+    }
+    catch (error) {
+        console.error('❌ External session error:', error);
+        // Clean up on error
+        if (finalProjectPath && cleanup && githubUrl) {
+            const sessionIdForCleanup = writer ? writer.getSessionId() : null;
+            cleanupProject(finalProjectPath, sessionIdForCleanup);
+        }
         if (stream) {
-          writer.send({
-            type: 'github-error',
-            error: error.message
-          });
+            // For streaming, send error event and stop
+            if (!writer) {
+                // Set up SSE headers if not already done
+                res.setHeader('Content-Type', 'text/event-stream');
+                res.setHeader('Cache-Control', 'no-cache');
+                res.setHeader('Connection', 'keep-alive');
+                res.setHeader('X-Accel-Buffering', 'no');
+                writer = new SSEStreamWriter(res, req.user.id);
+            }
+            if (!res.writableEnded) {
+                writer.send({
+                    type: 'error',
+                    error: error.message,
+                    message: `Failed: ${error.message}`
+                });
+                writer.end();
+            }
         }
-        // Store error info for non-streaming response
-        if (!stream) {
-          branchInfo = { error: error.message };
-          prInfo = { error: error.message };
+        else if (!res.headersSent) {
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
         }
-      }
     }
-
-    // Handle response based on streaming mode
-    if (stream) {
-      // Streaming mode: end the SSE stream
-      writer.end();
-    } else {
-      // Non-streaming mode: send filtered messages and token summary as JSON
-      const assistantMessages = writer.getAssistantMessages();
-      const tokenSummary = writer.getTotalTokens();
-
-      const response = {
-        success: true,
-        sessionId: writer.getSessionId(),
-        messages: assistantMessages,
-        tokens: tokenSummary,
-        projectPath: finalProjectPath
-      };
-
-      // Add branch/PR info if created
-      if (branchInfo) {
-        response.branch = branchInfo;
-      }
-      if (prInfo) {
-        response.pullRequest = prInfo;
-      }
-
-      res.json(response);
-    }
-
-    // Clean up if requested
-    if (cleanup && githubUrl) {
-      // Only cleanup if we cloned a repo (not for existing project paths)
-      const sessionIdForCleanup = writer.getSessionId();
-      setTimeout(() => {
-        cleanupProject(finalProjectPath, sessionIdForCleanup);
-      }, 5000);
-    }
-
-  } catch (error) {
-    console.error('❌ External session error:', error);
-
-    // Clean up on error
-    if (finalProjectPath && cleanup && githubUrl) {
-      const sessionIdForCleanup = writer ? writer.getSessionId() : null;
-      cleanupProject(finalProjectPath, sessionIdForCleanup);
-    }
-
-    if (stream) {
-      // For streaming, send error event and stop
-      if (!writer) {
-        // Set up SSE headers if not already done
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.setHeader('Connection', 'keep-alive');
-        res.setHeader('X-Accel-Buffering', 'no');
-        writer = new SSEStreamWriter(res, req.user.id);
-      }
-
-      if (!res.writableEnded) {
-        writer.send({
-          type: 'error',
-          error: error.message,
-          message: `Failed: ${error.message}`
-        });
-        writer.end();
-      }
-    } else if (!res.headersSent) {
-      res.status(500).json({
-        success: false,
-        error: error.message
-      });
-    }
-  }
 });
-
 export default router;
+//# sourceMappingURL=agent.js.map

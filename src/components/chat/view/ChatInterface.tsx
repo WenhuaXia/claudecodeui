@@ -15,6 +15,8 @@ import { useSessionStore } from '../../../stores/useSessionStore';
 import ChatMessagesPane from './subcomponents/ChatMessagesPane';
 import ChatComposer from './subcomponents/ChatComposer';
 import CommandResultModal from './subcomponents/CommandResultModal';
+import ScrollNavigation from './subcomponents/ScrollNavigation';
+import { exportSessionAsMarkdown } from '../utils/exportSession';
 
 
 function ChatInterface({
@@ -110,10 +112,13 @@ function ChatInterface({
     visibleMessages,
     loadEarlierMessages,
     loadAllMessages,
+    loadMoreMessages,
     allMessagesLoaded,
     isLoadingAllMessages,
     loadAllJustFinished,
     showLoadAllOverlay,
+    claudeStatus,
+    setClaudeStatus,
     createDiff,
     scrollContainerRef,
     scrollToBottom,
@@ -311,56 +316,73 @@ function ChatInterface({
 
   return (
     <PermissionContext.Provider value={permissionContextValue}>
-      <div className="flex h-full min-h-0 flex-col">
-        <ChatMessagesPane
-          scrollContainerRef={scrollContainerRef}
-          onWheel={handleScroll}
-          onTouchMove={handleScroll}
-          isLoadingSessionMessages={isLoadingSessionMessages}
-          isProcessing={isProcessing}
-          chatMessages={chatMessages}
-          selectedSession={selectedSession}
-          currentSessionId={currentSessionId}
-          provider={provider}
-          setProvider={(nextProvider) => setProvider(nextProvider as Provider)}
-          textareaRef={textareaRef}
-          claudeModel={claudeModel}
-          setClaudeModel={setClaudeModel}
-          cursorModel={cursorModel}
-          setCursorModel={setCursorModel}
-          codexModel={codexModel}
-          setCodexModel={setCodexModel}
-          geminiModel={geminiModel}
-          setGeminiModel={setGeminiModel}
-          opencodeModel={opencodeModel}
-          setOpenCodeModel={setOpenCodeModel}
-          providerModelCatalog={providerModelCatalog}
-          providerModelsLoading={providerModelsLoading}
-          tasksEnabled={tasksEnabled}
-          isTaskMasterInstalled={isTaskMasterInstalled}
-          onShowAllTasks={onShowAllTasks}
-          setInput={setInput}
-          isLoadingMoreMessages={isLoadingMoreMessages}
-          hasMoreMessages={hasMoreMessages}
-          totalMessages={totalMessages}
-          sessionMessagesCount={chatMessages.length}
-          visibleMessageCount={visibleMessageCount}
-          visibleMessages={visibleMessages}
-          loadEarlierMessages={loadEarlierMessages}
-          loadAllMessages={loadAllMessages}
-          allMessagesLoaded={allMessagesLoaded}
-          isLoadingAllMessages={isLoadingAllMessages}
-          loadAllJustFinished={loadAllJustFinished}
-          showLoadAllOverlay={showLoadAllOverlay}
-          createDiff={createDiff}
-          onFileOpen={onFileOpen}
-          onShowSettings={onShowSettings}
-          onGrantToolPermission={handleGrantToolPermission}
-          autoExpandTools={autoExpandTools}
-          showRawParameters={showRawParameters}
-          showThinking={showThinking}
-          selectedProject={selectedProject}
-        />
+      <div className="flex h-full flex-col">
+        <div className="relative flex flex-1 overflow-hidden">
+          <div className="flex-1 h-full overflow-hidden">
+          <ChatMessagesPane
+            scrollContainerRef={scrollContainerRef}
+            onWheel={handleScroll}
+            onTouchMove={handleScroll}
+            isLoadingSessionMessages={isLoadingSessionMessages}
+            chatMessages={chatMessages}
+            selectedSession={selectedSession}
+            currentSessionId={currentSessionId}
+            provider={provider}
+            setProvider={(nextProvider) => setProvider(nextProvider as Provider)}
+            textareaRef={textareaRef}
+            claudeModel={claudeModel}
+            setClaudeModel={setClaudeModel}
+            cursorModel={cursorModel}
+            setCursorModel={setCursorModel}
+            codexModel={codexModel}
+            setCodexModel={setCodexModel}
+            geminiModel={geminiModel}
+            setGeminiModel={setGeminiModel}
+            opencodeModel={opencodeModel}
+            setOpenCodeModel={setOpenCodeModel}
+            providerModelCatalog={providerModelCatalog}
+            providerModelsLoading={providerModelsLoading}
+            tasksEnabled={tasksEnabled}
+            isTaskMasterInstalled={isTaskMasterInstalled}
+            onShowAllTasks={onShowAllTasks}
+            setInput={setInput}
+            isLoadingMoreMessages={isLoadingMoreMessages}
+            hasMoreMessages={hasMoreMessages}
+            totalMessages={totalMessages}
+            sessionMessagesCount={chatMessages.length}
+            visibleMessageCount={visibleMessageCount}
+            visibleMessages={visibleMessages}
+            loadEarlierMessages={loadEarlierMessages}
+            loadAllMessages={loadAllMessages}
+            loadMoreMessages={loadMoreMessages}
+            allMessagesLoaded={allMessagesLoaded}
+            isLoadingAllMessages={isLoadingAllMessages}
+            loadAllJustFinished={loadAllJustFinished}
+            createDiff={createDiff}
+            onFileOpen={onFileOpen}
+            onShowSettings={onShowSettings}
+            onGrantToolPermission={handleGrantToolPermission}
+            autoExpandTools={autoExpandTools}
+            showRawParameters={showRawParameters}
+            showThinking={showThinking}
+            selectedProject={selectedProject}
+          />
+          </div>
+          <div className="flex-shrink-0 w-[28px]">
+            <ScrollNavigation
+              scrollContainerRef={scrollContainerRef}
+              chatMessages={visibleMessages}
+              loadAllMessages={loadAllMessages}
+              hasMoreMessages={hasMoreMessages}
+              sessionId={currentSessionId || undefined}
+              onExportSession={() => {
+                if (currentSessionId) {
+                  exportSessionAsMarkdown(chatMessages, currentSessionId);
+                }
+              }}
+            />
+          </div>
+        </div>
 
         <ChatComposer
           pendingPermissionRequests={pendingPermissionRequests}

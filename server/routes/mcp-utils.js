@@ -1,16 +1,13 @@
 /**
  * MCP UTILITIES API ROUTES
  * ========================
- * 
+ *
  * API endpoints for MCP server detection and configuration utilities.
  * These endpoints expose centralized MCP detection functionality.
  */
-
 import express from 'express';
 import { detectTaskMasterMCPServer } from '../utils/mcp-detector.js';
-
 const router = express.Router();
-
 /**
  * GET /api/mcp-utils/taskmaster-server
  * Check if TaskMaster MCP server is configured
@@ -19,7 +16,8 @@ router.get('/taskmaster-server', async (req, res) => {
     try {
         const result = await detectTaskMasterMCPServer();
         res.json(result);
-    } catch (error) {
+    }
+    catch (error) {
         console.error('TaskMaster MCP detection error:', error);
         res.status(500).json({
             error: 'Failed to detect TaskMaster MCP server',
@@ -27,5 +25,5 @@ router.get('/taskmaster-server', async (req, res) => {
         });
     }
 });
-
 export default router;
+//# sourceMappingURL=mcp-utils.js.map
