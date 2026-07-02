@@ -139,6 +139,12 @@
     "removeFromSidebar": "仅从侧边栏移除",
     "deleteAllData": "永久删除所有数据",
     "allConversationsDeleted": "项目将从侧边栏中移除。您的文件、记忆和会话数据将会保留。",
-    "cannotUndo": "您可以稍后重新添加此项目。"
+    "cannotUndo": "您可以稍后重新添加此项目。",
+    "archiveSessionNotice": "归档可将会话从活动列表中隐藏，同时保留其历史记录。",
+    "archiveSession": "归档会话",
+    "deleteSessionPermanently": "永久删除"
+  },
+  "archived": {
+    "deletePermanently": "永久删除"
   }
 }
