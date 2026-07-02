@@ -331,18 +331,11 @@ export default function ScrollNavigation({
       if (target) {
         const containerRect = container.getBoundingClientRect();
         const targetRect = target.getBoundingClientRect();
-        // Scroll target so the bubble is fully visible with padding above
-        const bubbleHeight = targetRect.height;
-        const paddingAbove = 40; // space above the bubble
-        const paddingBelow = 40; // space below to ensure full visibility
-        const containerHeight = containerRect.height;
         const offset = targetRect.top - containerRect.top;
-        // If bubble would exceed viewport bottom, scroll more to fit it
-        if (offset + bubbleHeight + paddingBelow > containerHeight) {
-          container.scrollTop += offset + bubbleHeight + paddingBelow - containerHeight;
-        } else {
-          container.scrollTop += offset - paddingAbove;
-        }
+        // Always position bubble near top with padding
+        const delta = offset - 40;
+        const newScrollTop = container.scrollTop + delta;
+        container.scrollTop = Math.max(0, newScrollTop);
       }
 
       // Skip scroll tracking for next 3 frames to avoid race condition
@@ -359,11 +352,9 @@ export default function ScrollNavigation({
   }, [scrollToNode]);
 
   const scrollToBottom = useCallback(() => {
-    const nodes = timelineNodesRef.current;
-    if (nodes.length > 0) {
-      scrollToNode(nodes.length - 1);
-    }
-  }, [scrollToNode]);
+    const container = scrollContainerRef.current;
+    if (container) container.scrollTop = container.scrollHeight;
+  }, [scrollContainerRef]);
 
   const scrollPrev = useCallback(() => {
     const nodes = timelineNodesRef.current;
