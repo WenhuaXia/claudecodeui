@@ -313,7 +313,7 @@ function Sidebar({
             isBookmarked={isBookmarked}
             onToggleBookmark={toggleBookmark}
             onRemoveBookmark={removeBookmark}
-            onSelectBookmarkedSession={(projectId, sessionId, provider) => {
+            onSelectBookmarkedSession={async (projectId: string, sessionId: string) => {
               const project = projects.find(p => p.projectId === projectId);
               if (project) {
                 handleProjectSelect(project);
@@ -323,7 +323,7 @@ function Sidebar({
                   handleSessionClick(existing, project.projectId);
                 } else {
                   handleSessionClick(
-                    { id: sessionId, __provider: provider || 'claude' },
+                    { id: sessionId, __provider: 'claude' },
                     project.projectId,
                   );
                 }

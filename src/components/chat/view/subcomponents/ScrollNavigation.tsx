@@ -282,8 +282,9 @@ export default function ScrollNavigation({
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
-    container.addEventListener('scroll', scheduleUpdate, { passive: true });
-    return () => container.removeEventListener('scroll', scheduleUpdate);
+    const onScroll = () => scheduleUpdate();
+    container.addEventListener('scroll', onScroll, { passive: true });
+    return () => container.removeEventListener('scroll', onScroll);
   }, [scrollContainerRef, scheduleUpdate]);
 
   // Show active dot immediately when messages are first available

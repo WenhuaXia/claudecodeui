@@ -16,6 +16,8 @@ import { useSessionStore } from '../../../stores/useSessionStore';
 import ChatMessagesPane from './subcomponents/ChatMessagesPane';
 import ChatComposer from './subcomponents/ChatComposer';
 import CommandResultModal from './subcomponents/CommandResultModal';
+import ScrollNavigation from './subcomponents/ScrollNavigation';
+import { exportSessionAsMarkdown } from '../utils/exportSession';
 
 
 function ChatInterface({
@@ -357,6 +359,19 @@ function ChatInterface({
           showRawParameters={showRawParameters}
           showThinking={showThinking}
           selectedProject={selectedProject}
+        />
+
+        <ScrollNavigation
+          scrollContainerRef={scrollContainerRef}
+          chatMessages={visibleMessages}
+          loadAllMessages={loadAllMessages}
+          hasMoreMessages={hasMoreMessages}
+          sessionId={currentSessionId || undefined}
+          onExportSession={() => {
+            if (currentSessionId) {
+              exportSessionAsMarkdown(chatMessages, currentSessionId);
+            }
+          }}
         />
 
         <div className="relative flex-shrink-0">

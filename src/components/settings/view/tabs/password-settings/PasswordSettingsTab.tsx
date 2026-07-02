@@ -50,7 +50,7 @@ export default function PasswordSettingsTab() {
     setStatus('saving');
 
     try {
-      const result = await api.auth.changePassword(oldPassword, newPassword);
+      const result = await (api.auth as any).changePassword(oldPassword, newPassword);
       if (result.success) {
         setStatus('success');
         setOldPassword('');

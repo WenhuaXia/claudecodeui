@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Check, Edit2, Loader2, Pin, Trash2, X } from 'lucide-react';
 import type { TFunction } from 'i18next';
 
-import { Badge, Button, Tooltip } from '../../../../shared/view/ui';
+import { Badge, Button, buttonVariants, Tooltip } from '../../../../shared/view/ui';
 import type { BookmarkedSession } from '../../../../stores/useBookmarkStore';
 import { cn } from '../../../../lib/utils';
 import type { Project, ProjectSession, LLMProvider } from '../../../../types/app';
@@ -195,7 +195,7 @@ export default function SidebarSessionItem({
               </div>
             </div>
 
-            {!sessionView.isCursorSession && (
+            {!(sessionView as any).isCursorSession && (
               <>
                 <button
                   className="ml-1 flex h-5 w-5 items-center justify-center rounded-md opacity-70 transition-transform active:scale-95 bg-blue-50 dark:bg-blue-900/20"

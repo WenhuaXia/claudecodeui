@@ -122,7 +122,7 @@ export const createScrollToFirstChunkExtension = ({
       constructor(view: EditorView) {
         // Wait for merge decorations so the first chunk location is stable.
         setTimeout(() => {
-          const chunksData = getChunks(view.state);
+          const chunksData = getChunks(view.state as any);
           const firstChunk = chunksData?.chunks?.[0];
 
           if (firstChunk) {
