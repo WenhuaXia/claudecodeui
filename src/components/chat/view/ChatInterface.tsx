@@ -314,7 +314,7 @@ function ChatInterface({
 
   return (
     <PermissionContext.Provider value={permissionContextValue}>
-      <div className="flex h-full flex-col">
+      <div className="relative flex h-full flex-col overflow-hidden">
         <div className="relative flex flex-1 overflow-hidden">
           <div className="flex-1 h-full overflow-hidden">
           <ChatMessagesPane
