@@ -193,19 +193,20 @@ export default function ScrollNavigation({
   const shouldShow = chatMessages.length >= 1;
   const hasMore = hasMoreMessages;
 
-  // Build timeline nodes from the visible messages (same as DOM renders).
-  // Each node's domIndex matches querySelectorAll('.chat-message') position.
+  // Build timeline nodes from the visible messages.
+  // Each node's timestamp is used to find the matching DOM element via data-message-timestamp.
   const timelineNodes = useMemo(() => {
-    const nodes: { domIndex: number; dotType: MessageDotType; snippet: string; time: string; bookmarkId: string }[] = [];
-    chatMessages.forEach((m, domIndex) => {
+    const nodes: { timestamp: number | string; dotType: MessageDotType; snippet: string; time: string; bookmarkId: string }[] = [];
+    chatMessages.forEach((m) => {
       if (m.isStreaming) return;
       if (m.type !== 'user') return;
+      const ts = m.timestamp || 0;
       nodes.push({
-        domIndex,
+        timestamp: ts,
         dotType: 'user',
         snippet: truncateSnippet(m.content || m.displayText || ''),
-        time: formatMessageTime(m.timestamp),
-        bookmarkId: `bm-${String(m.timestamp).slice(0, 13)}-${(m.content || '').slice(0, 20).replace(/\s+/g, '_')}`,
+        time: formatMessageTime(ts),
+        bookmarkId: `bm-${String(ts).slice(0, 13)}-${(m.content || '').slice(0, 20).replace(/\s+/g, '_')}`,
       });
     });
     return nodes;
@@ -261,23 +262,25 @@ export default function ScrollNavigation({
       return;
     }
 
-    // Find the DOM element at viewport center, then map to timeline node index
+    // Build a map: timestamp -> element for quick lookup
     const elements = container.querySelectorAll<HTMLDivElement>('.chat-message');
+    const tsToEl = new Map<string | number, HTMLDivElement>();
+    elements.forEach(el => {
+      const ts = el.getAttribute('data-message-timestamp');
+      if (ts) tsToEl.set(Number(ts), el);
+    });
+
     const viewportCenter = scrollTop + clientHeight / 2;
-    let activeDomIdx = elements.length - 1;
-    for (let i = 0; i < elements.length; i++) {
-      const top = elements[i].getBoundingClientRect().top - container.getBoundingClientRect().top + scrollTop;
+    let activeNodeIdx = -1;
+    for (let i = 0; i < nodes.length; i++) {
+      const el = tsToEl.get(nodes[i].timestamp);
+      if (!el) continue;
+      const top = el.getBoundingClientRect().top - container.getBoundingClientRect().top + scrollTop;
       if (top <= viewportCenter) {
-        activeDomIdx = i;
+        activeNodeIdx = i;
       } else {
         break;
       }
-    }
-    // If viewport center is on a filtered-out message (e.g. streaming),
-    // fall back to the last visible node before that position.
-    let activeNodeIdx = nodes.findIndex((n) => n.domIndex === activeDomIdx);
-    if (activeNodeIdx < 0) {
-      activeNodeIdx = nodes.reduce((best, n, idx) => n.domIndex <= activeDomIdx ? idx : best, -1);
     }
     if (mountedRef.current) setActiveDotIndex(activeNodeIdx >= 0 ? activeNodeIdx : -1);
   }, [scrollContainerRef]);
@@ -322,9 +325,10 @@ export default function ScrollNavigation({
       const container = scrollContainerRef.current;
       if (!container) return;
 
-      const elements = container.querySelectorAll<HTMLDivElement>('.chat-message');
-      if (elements.length > node.domIndex) {
-        const target = elements[node.domIndex];
+      // Find the DOM element by data-message-timestamp
+      const selector = `[data-message-timestamp="${node.timestamp}"]`;
+      const target = container.querySelector<HTMLDivElement>(selector);
+      if (target) {
         const containerRect = container.getBoundingClientRect();
         const targetRect = target.getBoundingClientRect();
         // Scroll target to top with 8px offset (below any sticky header)
