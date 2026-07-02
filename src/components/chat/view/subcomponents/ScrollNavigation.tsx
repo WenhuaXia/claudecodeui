@@ -324,7 +324,7 @@ export default function ScrollNavigation({
 
       const elements = container.querySelectorAll<HTMLDivElement>('.chat-message');
       if (elements.length > node.domIndex) {
-        elements[node.domIndex].scrollIntoView({ block: 'center', behavior: 'instant' });
+        elements[node.domIndex].scrollIntoView({ block: 'start', behavior: 'instant' });
       }
     },
     [scrollContainerRef, timelineNodes],
@@ -480,7 +480,7 @@ export default function ScrollNavigation({
           const isFocused = i === focusedDotIndex;
           const isBookmarked = bookmarks.has(node.bookmarkId);
 
-          const dotSizeClass = isFocused ? 'lg' : isActive ? 'md' : dotSize;
+          const dotSizeClass = isActive ? 'lg' : isFocused ? 'md' : dotSize;
 
           return (
             <Tooltip
