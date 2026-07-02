@@ -180,6 +180,9 @@ export default function ScrollNavigation({
 }: ScrollNavigationProps) {
   const { t } = useTranslation('chat');
   const [activeDotIndex, setActiveDotIndex] = useState(-1);
+  const activeDotIndexRef = useRef(-1);
+  // Keep ref in sync for use inside useCallback without stale closure
+  useEffect(() => { activeDotIndexRef.current = activeDotIndex; }, [activeDotIndex]);
   const [isStripHovered, setIsStripHovered] = useState(false);
   const [focusedDotIndex, setFocusedDotIndex] = useState(-1);
   const [bookmarks, setBookmarks] = useState<Set<string>>(() => new Set());
@@ -340,46 +343,16 @@ export default function ScrollNavigation({
   const scrollPrev = useCallback(() => {
     const nodes = timelineNodesRef.current;
     if (nodes.length === 0) return;
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    const elements = container.querySelectorAll<HTMLDivElement>('.chat-message');
-
-    const { scrollTop, clientHeight } = container;
-    const viewportCenter = scrollTop + clientHeight / 2;
-
-    let currentNodeIdx = -1;
-    for (let i = 0; i < elements.length; i++) {
-      const top = elements[i].getBoundingClientRect().top - container.getBoundingClientRect().top + scrollTop;
-      if (top > viewportCenter) break;
-      const nodeIdx = nodes.findIndex(n => n.domIndex === i);
-      if (nodeIdx >= 0) currentNodeIdx = nodeIdx;
-    }
-
-    const targetNodeIdx = Math.max(0, currentNodeIdx - 1);
+    const targetNodeIdx = Math.max(0, activeDotIndexRef.current - 1);
     scrollToNode(targetNodeIdx);
-  }, [scrollContainerRef, scrollToNode]);
+  }, [scrollToNode]);
 
   const scrollNext = useCallback(() => {
     const nodes = timelineNodesRef.current;
     if (nodes.length === 0) return;
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    const elements = container.querySelectorAll<HTMLDivElement>('.chat-message');
-
-    const { scrollTop, clientHeight } = container;
-    const viewportCenter = scrollTop + clientHeight / 2;
-
-    let currentNodeIdx = -1;
-    for (let i = 0; i < elements.length; i++) {
-      const top = elements[i].getBoundingClientRect().top - container.getBoundingClientRect().top + scrollTop;
-      if (top > viewportCenter) break;
-      const nodeIdx = nodes.findIndex(n => n.domIndex === i);
-      if (nodeIdx >= 0) currentNodeIdx = nodeIdx;
-    }
-
-    const targetNodeIdx = Math.min(nodes.length - 1, currentNodeIdx + 1);
+    const targetNodeIdx = Math.min(nodes.length - 1, activeDotIndexRef.current + 1);
     scrollToNode(targetNodeIdx);
-  }, [scrollContainerRef, scrollToNode]);
+  }, [scrollToNode]);
 
   // ── Bookmark ──
 
