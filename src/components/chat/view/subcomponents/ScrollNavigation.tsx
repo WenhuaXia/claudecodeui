@@ -321,7 +321,6 @@ export default function ScrollNavigation({
       const node = timelineNodes[nodeIndex];
       if (!node) return;
       setActiveDotIndex(nodeIndex);
-      skipUpdateRef.current = true;
       const container = scrollContainerRef.current;
       if (!container) return;
 
@@ -334,19 +333,30 @@ export default function ScrollNavigation({
         // Scroll target to top with 8px offset (below any sticky header)
         container.scrollTop += (targetRect.top - containerRect.top) + 8;
       }
+
+      // Schedule skipUpdateRef to clear after this scroll settles
+      // so the next scroll event re-syncs activeDotIndex from scroll position
+      skipUpdateRef.current = true;
+      requestAnimationFrame(() => {
+        skipUpdateRef.current = false;
+      });
     },
     [scrollContainerRef, timelineNodes],
   );
 
   const scrollToTop = useCallback(() => {
-    const container = scrollContainerRef.current;
-    if (container) container.scrollTop = 0;
-  }, [scrollContainerRef]);
+    const nodes = timelineNodesRef.current;
+    if (nodes.length > 0) {
+      scrollToNode(0);
+    }
+  }, [scrollToNode]);
 
   const scrollToBottom = useCallback(() => {
-    const container = scrollContainerRef.current;
-    if (container) container.scrollTop = container.scrollHeight;
-  }, [scrollContainerRef]);
+    const nodes = timelineNodesRef.current;
+    if (nodes.length > 0) {
+      scrollToNode(nodes.length - 1);
+    }
+  }, [scrollToNode]);
 
   const scrollPrev = useCallback(() => {
     const nodes = timelineNodesRef.current;
