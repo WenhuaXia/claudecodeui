@@ -54,14 +54,11 @@
     "sections": {
       "appearance": "外观",
       "toolDisplay": "工具显示",
-      "viewOptions": "视图选项",
       "inputSettings": "输入设置"
     },
     "darkMode": "深色模式",
-    "autoExpandTools": "自动展开工具",
     "showRawParameters": "显示原始参数",
     "showThinking": "显示思考过程",
-    "autoScrollToBottom": "自动滚动到底部",
     "sendByCtrlEnter": "使用 Ctrl+Enter 发送",
     "sendByCtrlEnterDescription": "启用后，按 Ctrl+Enter 发送消息，而不是仅按 Enter。这对于使用输入法的用户可以避免意外发送。",
     "dragHandle": {
@@ -97,8 +94,7 @@
     "computer": "计算机使用",
     "notifications": "通知",
     "plugins": "插件",
-    "about": "关于",
-    "password": "密码"
+    "about": "关于"
   },
   "notifications": {
     "title": "通知",
@@ -506,26 +502,32 @@
     "installButton": "安装运行时",
     "installingButton": "安装中..."
   },
-  "password": {
-    "title": "密码",
-    "description": "修改您的账户密码",
-    "currentPassword": "当前密码",
-    "currentPasswordPlaceholder": "请输入当前密码",
-    "newPassword": "新密码",
-    "newPasswordPlaceholder": "请输入新密码",
-    "confirmPassword": "确认新密码",
-    "confirmPasswordPlaceholder": "请再次输入新密码",
-    "minLengthHelp": "密码至少需要 {{min}} 个字符",
-    "saveChanges": "保存更改",
-    "saving": "保存中...",
-    "success": "密码修改成功",
-    "error": {
-      "fillAllFields": "请填写所有字段",
-      "minLength": "密码至少需要 6 个字符",
-      "notMatch": "两次输入的密码不一致",
-      "sameAsOld": "新密码必须与当前密码不同",
-      "incorrectOld": "当前密码不正确",
-      "failed": "修改密码失败"
-    }
+  "voiceSettings": {
+    "title": "语音",
+    "description": "语音转文字输入和文字朗读，通过兼容 OpenAI 的音频后端实现。",
+    "enable": "启用语音",
+    "enableDescription": "在消息上显示麦克风按钮和朗读按钮。",
+    "backendTitle": "后端",
+    "backendDescription": "指向 OpenAI、Groq 或本地服务器（LocalAI、Speaches、Kokoro-FastAPI）。留空以使用服务器默认值。",
+    "baseUrl": "基础 URL",
+    "apiKey": "***",
+    "sttModel": "语音转文字模型",
+    "ttsModel": "文字转语音模型",
+    "voice": "音色",
+    "format": "音频格式",
+    "note": "自定义基础 URL 由浏览器直接调用，必须允许浏览器 CORS 请求。留空以使用服务器配置的后端。"
+  },
+  "aboutTab": {
+    "tagline": "开源 AI 编程助手界面",
+    "starOnGithub": "在GitHub上加星",
+    "tryHosted": "试用 CloudCLI 托管版",
+    "tryHostedDescription": "团队协作、共享 MCP 配置、跨环境设置同步，以及托管基础设施。",
+    "learnMore": "了解更多",
+    "proFeatures": "CloudCLI Pro 功能",
+    "syncSettings": "同步设置",
+    "syncSettingsDescription": "保持您的偏好设置、MCP 配置和主题在所有环境中同步。",
+    "teamManagement": "团队管理",
+    "teamManagementDescription": "多用户、基于角色的访问控制和团队共享项目。",
+    "availableWithPro": "CloudCLI Pro 可用"
   }
 }

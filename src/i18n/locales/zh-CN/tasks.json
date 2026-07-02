@@ -136,7 +136,16 @@
     "low": "低"
   },
   "noMatchingTasks": {
-    "title": "没有符合筛选条件的任务",
-    "description": "尝试调整你的搜索或筛选条件。"
+  "title": "没有符合筛选条件的任务",
+  "description": "尝试调整你的搜索或筛选条件。"
+  },
+  "createTaskModal": {
+  "title": "创建 AI 生成任务",
+  "askClaudeTitle": "小贴士：直接向 Claude Code 提问",
+  "askClaudeDesc": "在聊天中提出带有上下文和需求任务。TaskMaster 可以生成实现就绪的任务。",
+  "example": "示例：",
+  "exampleText": "请添加一个个人资料图片上传的任务，并包含最佳实践研究。",
+  "viewDocs": "查看 TaskMaster 文档",
+  "gotIt": "知道了"
   }
-}
+  }
