@@ -197,17 +197,17 @@ export default function ScrollNavigation({
   // Build timeline nodes from the visible messages.
   // Each node's timestamp is used to find the matching DOM element via data-message-timestamp.
   const timelineNodes = useMemo(() => {
-    const nodes: { timestamp: number | string; dotType: MessageDotType; snippet: string; time: string; bookmarkId: string }[] = [];
+    const nodes: { timestampStr: string; dotType: MessageDotType; snippet: string; time: string; bookmarkId: string }[] = [];
     chatMessages.forEach((m) => {
       if (m.isStreaming) return;
       if (m.type !== 'user') return;
-      const ts = Number(m.timestamp) || 0;
+      const ts = String(m.timestamp);
       nodes.push({
-        timestamp: ts,
+        timestampStr: ts,
         dotType: 'user',
         snippet: truncateSnippet(m.content || m.displayText || ''),
         time: formatMessageTime(ts),
-        bookmarkId: `bm-${String(ts).slice(0, 13)}-${(m.content || '').slice(0, 20).replace(/\s+/g, '_')}`,
+        bookmarkId: `bm-${ts.slice(0, 13)}-${(m.content || '').slice(0, 20).replace(/\s+/g, '_')}`,
       });
     });
     return nodes;
@@ -263,18 +263,18 @@ export default function ScrollNavigation({
       return;
     }
 
-    // Build a map: timestamp -> element for quick lookup
+    // Build a map: timestampStr -> element for quick lookup
     const elements = container.querySelectorAll<HTMLDivElement>('.chat-message');
-    const tsToEl = new Map<string | number, HTMLDivElement>();
+    const tsToEl = new Map<string, HTMLDivElement>();
     elements.forEach(el => {
       const ts = el.getAttribute('data-message-timestamp');
-      if (ts) tsToEl.set(Number(ts), el);
+      if (ts) tsToEl.set(ts, el);
     });
 
     const viewportCenter = scrollTop + clientHeight / 2;
     let activeNodeIdx = -1;
     for (let i = 0; i < nodes.length; i++) {
-      const el = tsToEl.get(nodes[i].timestamp);
+      const el = tsToEl.get(nodes[i].timestampStr);
       if (!el) continue;
       const top = el.getBoundingClientRect().top - container.getBoundingClientRect().top + scrollTop;
       if (top <= viewportCenter) {
@@ -326,7 +326,7 @@ export default function ScrollNavigation({
       if (!container) return;
 
       // Find the DOM element by data-message-timestamp
-      const selector = `[data-message-timestamp="${node.timestamp}"]`;
+      const selector = `[data-message-timestamp="${node.timestampStr}"]`;
       const target = container.querySelector<HTMLDivElement>(selector);
       if (target) {
         const containerRect = container.getBoundingClientRect();
