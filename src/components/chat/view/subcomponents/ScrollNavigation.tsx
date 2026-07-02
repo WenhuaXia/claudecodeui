@@ -188,7 +188,8 @@ export default function ScrollNavigation({
   const [bookmarks, setBookmarks] = useState<Set<string>>(() => new Set());
   const rafIdRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
-  const skipUpdateRef = useRef(false);
+  // Number of rAF frames to skip scroll tracking after programmatic scroll
+  const skipFramesRef = useRef(0);
 
   const shouldShow = chatMessages.length >= 1;
   const hasMore = hasMoreMessages;
@@ -200,7 +201,7 @@ export default function ScrollNavigation({
     chatMessages.forEach((m) => {
       if (m.isStreaming) return;
       if (m.type !== 'user') return;
-      const ts = m.timestamp || 0;
+      const ts = Number(m.timestamp) || 0;
       nodes.push({
         timestamp: ts,
         dotType: 'user',
@@ -234,8 +235,8 @@ export default function ScrollNavigation({
     if (!force) {
       rafIdRef.current = requestAnimationFrame(() => {
         rafIdRef.current = null;
-        if (skipUpdateRef.current) {
-          skipUpdateRef.current = false;
+        if (skipFramesRef.current > 0) {
+          skipFramesRef.current--;
           return;
         }
         performUpdate();
@@ -334,12 +335,8 @@ export default function ScrollNavigation({
         container.scrollTop += (targetRect.top - containerRect.top) + 8;
       }
 
-      // Schedule skipUpdateRef to clear after this scroll settles
-      // so the next scroll event re-syncs activeDotIndex from scroll position
-      skipUpdateRef.current = true;
-      requestAnimationFrame(() => {
-        skipUpdateRef.current = false;
-      });
+      // Skip scroll tracking for next 3 frames to avoid race condition
+      skipFramesRef.current = 3;
     },
     [scrollContainerRef, timelineNodes],
   );

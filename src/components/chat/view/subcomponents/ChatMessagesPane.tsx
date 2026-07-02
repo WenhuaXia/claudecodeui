@@ -161,7 +161,7 @@ function ChatMessagesPane({
       ref={scrollContainerRef}
       onWheel={onWheel}
       onTouchMove={onTouchMove}
-      className="chat-messages-pane relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide py-3 sm:py-4"
+      className="chat-messages-pane relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden py-3 sm:py-4"
     >
       <div className="mx-auto w-full max-w-[54.25rem] space-y-3 px-4 pr-8 sm:space-y-4">
       {(isLoadingSessionMessages || isProcessing) && chatMessages.length === 0 ? (
