@@ -324,7 +324,11 @@ export default function ScrollNavigation({
 
       const elements = container.querySelectorAll<HTMLDivElement>('.chat-message');
       if (elements.length > node.domIndex) {
-        elements[node.domIndex].scrollIntoView({ block: 'start', behavior: 'instant' });
+        const target = elements[node.domIndex];
+        const containerRect = container.getBoundingClientRect();
+        const targetRect = target.getBoundingClientRect();
+        // Scroll target to top with 8px offset (below any sticky header)
+        container.scrollTop += (targetRect.top - containerRect.top) + 8;
       }
     },
     [scrollContainerRef, timelineNodes],
