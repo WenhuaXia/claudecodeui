@@ -331,8 +331,18 @@ export default function ScrollNavigation({
       if (target) {
         const containerRect = container.getBoundingClientRect();
         const targetRect = target.getBoundingClientRect();
-        // Scroll target to top with 8px offset (below any sticky header)
-        container.scrollTop += (targetRect.top - containerRect.top) + 8;
+        // Scroll target so the bubble is fully visible with padding above
+        const bubbleHeight = targetRect.height;
+        const paddingAbove = 40; // space above the bubble
+        const paddingBelow = 40; // space below to ensure full visibility
+        const containerHeight = containerRect.height;
+        const offset = targetRect.top - containerRect.top;
+        // If bubble would exceed viewport bottom, scroll more to fit it
+        if (offset + bubbleHeight + paddingBelow > containerHeight) {
+          container.scrollTop += offset + bubbleHeight + paddingBelow - containerHeight;
+        } else {
+          container.scrollTop += offset - paddingAbove;
+        }
       }
 
       // Skip scroll tracking for next 3 frames to avoid race condition
