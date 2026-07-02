@@ -90,10 +90,13 @@
     "appearance": "外观",
     "git": "Git",
     "apiTokens": "API 和令牌",
+    "voice": "语音",
     "tasks": "任务",
-    "computer": "计算机使用",
+    "browser": "浏览器",
     "notifications": "通知",
     "plugins": "插件",
+    "password": "修改密码",
+    "computer": "计算机使用",
     "about": "关于"
   },
   "notifications": {
