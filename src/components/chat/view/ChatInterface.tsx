@@ -16,6 +16,8 @@ import { useSessionStore } from '../../../stores/useSessionStore';
 import ChatMessagesPane from './subcomponents/ChatMessagesPane';
 import ChatComposer from './subcomponents/ChatComposer';
 import CommandResultModal from './subcomponents/CommandResultModal';
+import ScrollNavigation from './subcomponents/ScrollNavigation';
+import { exportSessionAsMarkdown } from '../utils/exportSession';
 
 
 
@@ -360,7 +362,23 @@ function ChatInterface({
           selectedProject={selectedProject}
         />
 
-
+        {/* ScrollNavigation - absolutely positioned on the right edge, not in flex flow */}
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-30 flex items-center">
+          <div className="pointer-events-auto">
+            <ScrollNavigation
+              scrollContainerRef={scrollContainerRef}
+              chatMessages={visibleMessages}
+              loadAllMessages={loadAllMessages}
+              hasMoreMessages={hasMoreMessages}
+              sessionId={currentSessionId || undefined}
+              onExportSession={() => {
+                if (currentSessionId) {
+                  exportSessionAsMarkdown(chatMessages, currentSessionId);
+                }
+              }}
+            />
+          </div>
+        </div>
 
         <div className="relative flex-shrink-0">
           {isUserScrolledUp && chatMessages.length > 0 && (
