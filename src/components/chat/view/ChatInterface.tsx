@@ -363,7 +363,7 @@ function ChatInterface({
         />
 
         {/* ScrollNavigation - absolutely positioned on the right edge, not in flex flow */}
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-30 flex items-center">
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-30 flex items-start justify-end">
           <div className="pointer-events-auto">
             <ScrollNavigation
               scrollContainerRef={scrollContainerRef}
