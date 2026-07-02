@@ -71,7 +71,7 @@ export const createEditorToolbarPanelExtension = ({
 
     const updatePanel = () => {
       const hasDiff = Boolean(file.diffInfo && showDiff);
-      const chunksData = hasDiff ? getChunks(view.state as any) : null;
+      const chunksData = hasDiff ? getChunks(view.state) : null;
       const chunks = chunksData?.chunks || [];
       const chunkCount = chunks.length;
       const maxChunkIndex = Math.max(0, chunkCount - 1);
