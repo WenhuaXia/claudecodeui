@@ -54,11 +54,14 @@
     "sections": {
       "appearance": "外观",
       "toolDisplay": "工具显示",
+      "viewOptions": "视图选项",
       "inputSettings": "输入设置"
     },
     "darkMode": "深色模式",
+    "autoExpandTools": "自动展开工具",
     "showRawParameters": "显示原始参数",
     "showThinking": "显示思考过程",
+    "autoScrollToBottom": "自动滚动到底部",
     "sendByCtrlEnter": "使用 Ctrl+Enter 发送",
     "sendByCtrlEnterDescription": "启用后，按 Ctrl+Enter 发送消息，而不是仅按 Enter。这对于使用输入法的用户可以避免意外发送。",
     "dragHandle": {
@@ -94,7 +97,8 @@
     "computer": "计算机使用",
     "notifications": "通知",
     "plugins": "插件",
-    "about": "关于"
+    "about": "关于",
+    "password": "密码"
   },
   "notifications": {
     "title": "通知",
@@ -501,5 +505,27 @@
     "statusDisabled": "已禁用",
     "installButton": "安装运行时",
     "installingButton": "安装中..."
+  },
+  "password": {
+    "title": "密码",
+    "description": "修改您的账户密码",
+    "currentPassword": "当前密码",
+    "currentPasswordPlaceholder": "请输入当前密码",
+    "newPassword": "新密码",
+    "newPasswordPlaceholder": "请输入新密码",
+    "confirmPassword": "确认新密码",
+    "confirmPasswordPlaceholder": "请再次输入新密码",
+    "minLengthHelp": "密码至少需要 {{min}} 个字符",
+    "saveChanges": "保存更改",
+    "saving": "保存中...",
+    "success": "密码修改成功",
+    "error": {
+      "fillAllFields": "请填写所有字段",
+      "minLength": "密码至少需要 6 个字符",
+      "notMatch": "两次输入的密码不一致",
+      "sameAsOld": "新密码必须与当前密码不同",
+      "incorrectOld": "当前密码不正确",
+      "failed": "修改密码失败"
+    }
   }
 }
