@@ -746,10 +746,23 @@ export function useChatSessionState({
     scrollPositionRef.current = { height: container.scrollHeight, top: container.scrollTop };
   });
 
+  // Scroll to bottom on new messages (debounced during streaming)
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!scrollContainerRef.current || chatMessages.length === 0) return;
     if (isLoadingMoreRef.current || isLoadingMoreMessages || pendingScrollRestoreRef.current) return;
     if (searchScrollActiveRef.current) return;
+
+    // During streaming, debounce scroll-to-bottom to avoid jitter from rapid message updates
+    if (isProcessing) {
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+      scrollTimerRef.current = setTimeout(() => {
+        if (!isUserScrolledUp && scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+        }
+      }, 300);
+      return;
+    }
 
     if (!isUserScrolledUp) {
       setTimeout(() => scrollToBottom(), 50);
@@ -762,7 +775,7 @@ export function useChatSessionState({
     const newHeight = container.scrollHeight;
     const heightDiff = newHeight - prevHeight;
     if (heightDiff > 0 && prevTop > 0) container.scrollTop = prevTop + heightDiff;
-  }, [chatMessages.length, isLoadingMoreMessages, isUserScrolledUp, scrollToBottom]);
+  }, [chatMessages.length, isLoadingMoreMessages, isUserScrolledUp, scrollToBottom, isProcessing]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
