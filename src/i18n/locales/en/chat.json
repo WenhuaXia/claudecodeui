@@ -258,6 +258,5 @@
     "next": "Next",
     "last": "Bottom"
   },
-  "thoughtSeconds": "Thought for a few seconds",
-  "thoughtFor": "Thought for {{count}} second(s)"
+  "thoughtProcess": "Thought process"
 }

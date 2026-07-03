@@ -229,6 +229,5 @@
     "next": "下一条",
     "last": "底部"
   },
-  "thoughtSeconds": "思考了几秒钟",
-  "thoughtFor": "思考了 {{count}} 秒"
+  "thoughtProcess": "思考过程"
 }

@@ -137,12 +137,9 @@ export interface ReasoningTriggerProps extends React.ButtonHTMLAttributes<HTMLBu
 
 const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number, t?: ReturnType<typeof useTranslation>['t']): React.ReactNode => {
   if (isStreaming || duration === 0) {
-    return <Shimmer>{t ? t('chat.thinking') : 'Thinking...'}</Shimmer>;
+    return <Shimmer>{t ? t('thinking') : 'Thinking...'}</Shimmer>;
   }
-  if (duration === undefined) {
-    return <p>{t ? t('chat.thoughtSeconds') : 'Thought for a few seconds'}</p>;
-  }
-  return <p>{t ? t('chat.thoughtFor', { count: duration }) : `Thought for ${duration} seconds`}</p>;
+  return <p>{t ? t('thoughtProcess') : 'Thought for a few seconds'}</p>;
 };
 
 export const ReasoningTrigger = React.memo<ReasoningTriggerProps>(
