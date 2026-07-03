@@ -60,10 +60,7 @@
     "selectedOption": "✓ Claude selected option {{number}}",
     "instructionDetail": "In the CLI, you would select this option interactively using arrow keys or by typing the number."
   },
-  "thinking": {
-    "title": "Thinking...",
-    "emoji": "💭 Thinking..."
-  },
+  "thinking": "Thinking...",
   "json": {
     "response": "JSON Response"
   },
@@ -260,5 +257,7 @@
     "previous": "Previous",
     "next": "Next",
     "last": "Bottom"
-  }
+  },
+  "thoughtSeconds": "Thought for a few seconds",
+  "thoughtFor": "Thought for {{count}} second(s)"
 }

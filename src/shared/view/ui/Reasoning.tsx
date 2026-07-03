@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { BrainIcon, ChevronDownIcon } from 'lucide-react';
 
+import { useTranslation } from 'react-i18next';
 import { cn } from '../../../lib/utils';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from './Collapsible';
 import { Shimmer } from './Shimmer';
@@ -134,24 +135,26 @@ export interface ReasoningTriggerProps extends React.ButtonHTMLAttributes<HTMLBu
   getThinkingMessage?: (isStreaming: boolean, duration?: number) => React.ReactNode;
 }
 
-const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number): React.ReactNode => {
+const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number, t?: ReturnType<typeof useTranslation>['t']): React.ReactNode => {
   if (isStreaming || duration === 0) {
-    return <Shimmer>Thinking...</Shimmer>;
+    return <Shimmer>{t ? t('chat.thinking') : 'Thinking...'}</Shimmer>;
   }
   if (duration === undefined) {
-    return <p>Thought for a few seconds</p>;
+    return <p>{t ? t('chat.thoughtSeconds') : 'Thought for a few seconds'}</p>;
   }
-  return <p>Thought for {duration} seconds</p>;
+  return <p>{t ? t('chat.thoughtFor', { count: duration }) : `Thought for ${duration} seconds`}</p>;
 };
 
 export const ReasoningTrigger = React.memo<ReasoningTriggerProps>(
   ({
     className,
     children,
-    getThinkingMessage = defaultGetThinkingMessage,
+    getThinkingMessage,
     ...props
   }) => {
     const { isStreaming, isOpen, duration } = useReasoning();
+    const { t } = useTranslation('chat');
+    const thinkingMsgFn = getThinkingMessage ?? defaultGetThinkingMessage;
 
     return (
       <CollapsibleTrigger
@@ -164,7 +167,7 @@ export const ReasoningTrigger = React.memo<ReasoningTriggerProps>(
         {children ?? (
           <>
             <BrainIcon className="h-4 w-4" />
-            {getThinkingMessage(isStreaming, duration)}
+            {thinkingMsgFn(isStreaming, duration, t)}
             <ChevronDownIcon
               className={cn(
                 'h-4 w-4 transition-transform',
