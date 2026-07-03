@@ -89,6 +89,11 @@ git merge local/prd-editor-fix --no-edit
 git merge local/taskmaster-fix --no-edit
 # ✅ 本次无冲突
 
+# 11. avatar-nav-bar-overlap → 合并回 scroll-navigation-fixes-v2（导航条分支副作用）
+# 头像与导航条重叠 + 流式滚动抖动修回原分支，不再单独存在
+# git merge fix/avatar-nav-bar-overlap 已删除，改为 git merge fix/scroll-navigation-fixes-v2
+# ✅ Fast-forward 合并，无冲突
+
 # ── 完成 ──
 # 推送
 git push origin local-fixes --force-with-lease
