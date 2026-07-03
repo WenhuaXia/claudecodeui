@@ -179,15 +179,9 @@ export function normalizedToChatMessages(messages: NormalizedMessage[]): ChatMes
         break;
 
       case 'stream_delta':
-        if (msg.content) {
-          converted.push({
-            type: 'assistant',
-            content: msg.content,
-            timestamp: msg.timestamp,
-            isStreaming: true,
-            ...sharedMetadata,
-          });
-        }
+        // stream_delta events in JSONL history are streaming artifacts —
+        // the aggregated 'text' messages already exist. Skip them to avoid
+        // rendering each delta chunk as a separate message block.
         break;
 
       // stream_end, complete, status, permission_*, session_created
