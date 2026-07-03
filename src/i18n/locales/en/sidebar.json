@@ -49,7 +49,9 @@
     "save": "Save",
     "cancel": "Cancel",
     "clearSearch": "Clear search",
-    "openCommandPalette": "Open command palette"
+    "openCommandPalette": "Open command palette",
+    "deleteSessionOptions": "Archive or permanently delete this session",
+    "processingSessionIndicator": "Active sessions"
   },
   "navigation": {
     "chat": "Chat",
@@ -128,7 +130,12 @@
     "matches_one": "{{count}} match",
     "matches_other": "{{count}} matches",
     "projectsScanned_one": "{{count}} project scanned",
-    "projectsScanned_other": "{{count}} projects scanned"
+    "projectsScanned_other": "{{count}} projects scanned",
+    "runningPlaceholder": "Search running sessions...",
+    "archivedPlaceholder": "Search archived sessions...",
+    "runningTooltip": "Running sessions",
+    "archiveOnlyTooltip": "Archive only",
+    "modeRunning": "Running"
   },
   "deleteConfirmation": {
     "deleteProject": "Remove Project",
@@ -145,5 +152,23 @@
     "title": "Pinned",
     "pin": "Pin session",
     "unpin": "Unpin session"
+  },
+  "running": {
+    "title": "Running",
+    "emptyTitle": "No sessions running",
+    "emptyDescription": "Active work will appear here while a provider is processing.",
+    "noMatchingSessions": "No matching running sessions"
+  },
+  "archived": {
+    "emptyTitle": "No archived items",
+    "emptyDescription": "Archived workspaces and sessions will appear here when you hide them from the active list.",
+    "loadingTitle": "Loading archived sessions...",
+    "loadingDescription": "Please wait while we fetch your archived sessions.",
+    "noMatchingSessions": "No matching archived sessions",
+    "tryDifferentSearch": "Try adjusting your search terms",
+    "projectArchived": "Project archived",
+    "restore": "Restore",
+    "restoreProject": "Restore project",
+    "deletePermanently": "Delete permanently"
   }
 }
