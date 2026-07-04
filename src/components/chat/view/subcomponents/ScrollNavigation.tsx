@@ -417,7 +417,7 @@ export default function ScrollNavigation({
   if (!shouldShow) return null;
 
   return (
-    <div className="flex h-full flex-col items-center border-l border-border/30 bg-background/50 backdrop-blur-sm">
+    <div className="flex h-full w-7 flex-col items-center border-l border-border/30 bg-background/50 backdrop-blur-sm">
       {/* Session actions */}
       <div className="flex flex-col items-center gap-0.5 py-1">
         {onExportSession && (
@@ -470,7 +470,7 @@ export default function ScrollNavigation({
       </div>
 
       {/* Divider */}
-      <div className="w-5 border-t border-border/40" />
+      <div className="w-4 border-t border-border/40" />
 
       {/* Bookmark count badge */}
       {bookmarkCount > 0 && (

@@ -369,7 +369,7 @@ function ChatInterface({
         </div>
 
         {/* ScrollNavigation - nav bar left of scrollbar, hidden on mobile */}
-        <div className="pointer-events-none absolute inset-y-0 right-[8px] z-30 hidden items-start justify-end pr-[4px] sm:flex">
+        <div className="pointer-events-none absolute inset-y-0 right-[8px] z-30 flex items-start justify-end">
           <div className="pointer-events-auto h-full min-h-0">
             <ScrollNavigation
               scrollContainerRef={scrollContainerRef}
