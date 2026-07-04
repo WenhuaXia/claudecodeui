@@ -487,7 +487,7 @@ export default function ScrollNavigation({
 
       {/* Timeline dots */}
       <div
-        className="flex flex-1 w-full flex-col items-center justify-evenly py-1 overflow-hidden"
+        className="flex flex-1 flex-col items-center justify-evenly py-1 overflow-hidden"
         onMouseEnter={() => setIsStripHovered(true)}
         onMouseLeave={() => { setIsStripHovered(false); setFocusedDotIndex(-1); }}
       >
