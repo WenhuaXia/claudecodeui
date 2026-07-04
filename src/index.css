@@ -328,12 +328,14 @@
   }
   
   /* Hide scrollbar on mobile/touch devices while keeping scroll functionality */
-  .scrollbar-hide {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;     /* Firefox */
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;             /* Chrome, Safari, Opera */
+  @media (max-width: 639px) {
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+    }
   }
   
   .scrollbar-thin::-webkit-scrollbar {
