@@ -316,7 +316,7 @@ function ChatInterface({
     <PermissionContext.Provider value={permissionContextValue}>
       <div className="relative flex h-full flex-col overflow-hidden">
         <div className="relative flex flex-1 overflow-hidden">
-          <div className="flex-1 h-full mr-[32px] sm:mr-[40px]">
+          <div className="flex-1 h-full mr-[16px]">
           <ChatMessagesPane
             scrollContainerRef={scrollContainerRef}
             onWheel={handleScroll}
@@ -369,7 +369,7 @@ function ChatInterface({
         </div>
 
         {/* ScrollNavigation - nav bar left of scrollbar */}
-        <div className="pointer-events-none absolute inset-y-0 right-[40px] sm:right-[48px] z-30 flex items-start justify-end">
+        <div className="pointer-events-none absolute inset-y-0 right-[16px] z-30 flex items-start justify-end">
           <div className="pointer-events-auto h-full min-h-0">
             <ScrollNavigation
               scrollContainerRef={scrollContainerRef}
@@ -386,7 +386,7 @@ function ChatInterface({
           </div>
         </div>
 
-        <div className="mr-[32px] sm:mr-[40px]">
+        <div className="border-t border-border/50 mr-[16px]">
         <ChatComposer
           pendingPermissionRequests={pendingPermissionRequests}
           handlePermissionDecision={handlePermissionDecision}
