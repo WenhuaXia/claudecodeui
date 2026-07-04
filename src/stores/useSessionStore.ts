@@ -295,7 +295,10 @@ function dedupeAdjacentAssistantEchoes(merged: NormalizedMessage[]): NormalizedM
         && m.role === 'assistant'
       ) {
         const ms = (m.content || '').trim();
-        if (ms.length > 0 && ms === (prev.content || '').trim()) {
+        const ps = (prev.content || '').trim();
+        if (ms.length > 0 && (ms === ps || ms.startsWith(ps))) {
+          // m is the same or a superset of prev (accumulated text during streaming) — keep m, drop prev
+          out[out.length - 1] = m;
           continue;
         }
       }

@@ -136,17 +136,27 @@ export function normalizedToChatMessages(messages: NormalizedMessage[]): ChatMes
         break;
       }
 
-      case 'thinking':
-        if (msg.content?.trim()) {
-          converted.push({
-            type: 'assistant',
-            content: unescapeWithMathProtection(msg.content),
-            timestamp: msg.timestamp,
-            isThinking: true,
-            ...sharedMetadata,
-          });
+      case 'thinking': {
+        const content = msg.content?.trim();
+        if (content) {
+          const normalizedContent = unescapeWithMathProtection(content);
+          // Merge consecutive thinking messages into one so streaming thinking
+          // doesn't render as separate word-by-word blocks
+          const lastConverted = converted[converted.length - 1];
+          if (lastConverted && lastConverted.isThinking) {
+            lastConverted.content += normalizedContent;
+          } else {
+            converted.push({
+              type: 'assistant',
+              content: normalizedContent,
+              timestamp: msg.timestamp,
+              isThinking: true,
+              ...sharedMetadata,
+            });
+          }
         }
         break;
+      }
 
       case 'error':
         converted.push({
