@@ -327,6 +327,15 @@
     scrollbar-color: hsl(var(--muted-foreground)) transparent;
   }
   
+  /* Hide scrollbar on mobile/touch devices while keeping scroll functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;     /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;             /* Chrome, Safari, Opera */
+  }
+  
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
     height: 6px;
