@@ -8,7 +8,7 @@ import Tooltip from '../../../../shared/view/ui/Tooltip';
 
 function ArrowUpIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <path d="M9 7L6 4L3 7" />
     </svg>
   );
@@ -16,7 +16,7 @@ function ArrowUpIcon() {
 
 function ArrowDownIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <path d="M3 5L6 8L9 5" />
     </svg>
   );
@@ -24,7 +24,7 @@ function ArrowDownIcon() {
 
 function TopIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <path d="M2 5h8" />
       <path d="M6 2L3.5 5.5h5z" />
     </svg>
@@ -33,7 +33,7 @@ function TopIcon() {
 
 function BottomIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <path d="M3.5 6.5L6 10l2.5-3.5" />
       <path d="M2 7h8" />
     </svg>
@@ -425,10 +425,10 @@ export default function ScrollNavigation({
             <button
               type="button"
               onClick={onExportSession}
-              className="rounded p-1 text-muted-foreground transition-all duration-150 hover:text-foreground"
+              className="rounded p-0.5 text-muted-foreground transition-all duration-150 hover:text-foreground"
               aria-label={t('scrollNav.export')}
             >
-              <Download size={12} />
+              <Download size={10} />
             </button>
           </Tooltip>
         )}
@@ -437,7 +437,7 @@ export default function ScrollNavigation({
             <button
               type="button"
               onClick={loadAllMessages}
-              className={`rounded p-1 transition-all duration-150 ${
+              className={`rounded p-0.5 transition-all duration-150 ${
                 hasMore
                   ? 'text-muted-foreground hover:text-foreground'
                   : 'text-muted-foreground/30 cursor-default'
@@ -456,7 +456,7 @@ export default function ScrollNavigation({
               type="button"
               onClick={btn.action}
               disabled={btn.disabled}
-              className={`rounded p-1 transition-all duration-150 ${
+              className={`rounded p-0.5 transition-all duration-150 ${
                 btn.disabled
                   ? 'text-muted-foreground/30 cursor-default'
                   : 'text-muted-foreground hover:text-foreground'
