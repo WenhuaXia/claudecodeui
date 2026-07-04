@@ -316,7 +316,7 @@ function ChatInterface({
     <PermissionContext.Provider value={permissionContextValue}>
       <div className="relative flex h-full flex-col overflow-hidden">
         <div className="relative flex flex-1 overflow-hidden">
-          <div className="flex-1 h-full overflow-hidden">
+          <div className="flex-1 h-full overflow-hidden sm:mr-[32px]">
           <ChatMessagesPane
             scrollContainerRef={scrollContainerRef}
             onWheel={handleScroll}
@@ -368,8 +368,8 @@ function ChatInterface({
           </div>
         </div>
 
-        {/* ScrollNavigation - absolutely positioned on the right edge, not in flex flow */}
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-30 flex items-start justify-end pr-[4px]">
+        {/* ScrollNavigation - nav bar left of scrollbar, hidden on mobile */}
+        <div className="pointer-events-none absolute inset-y-0 right-[8px] z-30 hidden items-start justify-end pr-[4px] sm:flex">
           <div className="pointer-events-auto h-full min-h-0">
             <ScrollNavigation
               scrollContainerRef={scrollContainerRef}
@@ -386,6 +386,7 @@ function ChatInterface({
           </div>
         </div>
 
+        <div className="sm:mr-[32px]">
         <ChatComposer
           pendingPermissionRequests={pendingPermissionRequests}
           handlePermissionDecision={handlePermissionDecision}
@@ -453,6 +454,7 @@ function ChatInterface({
           isTextareaExpanded={isTextareaExpanded}
           sendByCtrlEnter={sendByCtrlEnter}
         />
+        </div>
       </div>
 
       <QuickSettingsPanel />
