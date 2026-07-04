@@ -417,7 +417,7 @@ export default function ScrollNavigation({
   if (!shouldShow) return null;
 
   return (
-    <div className="flex h-full w-6 flex-col items-center border-l border-border/30 bg-background/50 backdrop-blur-sm">
+    <div className="flex h-full w-5 flex-col items-center border-l border-border/30 bg-background/50 backdrop-blur-sm">
       {/* Session actions */}
       <div className="flex flex-col items-center gap-0.5 py-1">
         {onExportSession && (
