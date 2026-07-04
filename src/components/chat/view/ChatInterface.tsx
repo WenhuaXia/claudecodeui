@@ -369,7 +369,7 @@ function ChatInterface({
         </div>
 
         {/* ScrollNavigation - nav bar left of scrollbar */}
-        <div className="pointer-events-none absolute inset-y-0 right-[8px] z-30 flex items-start justify-end">
+        <div className="pointer-events-none absolute inset-y-0 right-[40px] sm:right-[48px] z-30 flex items-start justify-end">
           <div className="pointer-events-auto h-full min-h-0">
             <ScrollNavigation
               scrollContainerRef={scrollContainerRef}
