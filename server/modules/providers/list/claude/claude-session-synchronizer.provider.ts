@@ -436,9 +436,12 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
       }
     }
 
-    // ponytail: final guard — reject AI fragments that slipped through any path
-    if (sessionName && this.looksLikeAIFragment(sessionName)) {
-      sessionName = undefined;
+    // ponytail: strip leaked thinking/xml tags from any title source, then reject AI fragments
+    if (sessionName) {
+      sessionName = sessionName.replace(/<\?xml.*?\?>|<\thinking[^>]*>.*?<\/thinking>|<\/?thinking[^>]*>/gs, '').trim();
+      if (this.looksLikeAIFragment(sessionName)) {
+        sessionName = undefined;
+      }
     }
 
     return {
