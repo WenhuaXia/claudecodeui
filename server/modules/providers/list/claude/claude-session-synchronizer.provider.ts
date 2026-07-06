@@ -307,6 +307,26 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
   }
 
   /**
+   * Detect if a string looks like an AI response fragment rather than a
+   * human-readable session title. Catches cases where Claude SDK writes
+   * response text as custom-title (e.g. "(New chat) is also good. I will use").
+   */
+  private looksLikeAIFragment(title: string): boolean {
+    const t = title.trim();
+    // Strip leading punctuation and whitespace, then check the core content
+    const stripped = t.replace(/^[\s\(\)\[\],.\u201c\u201d\u2018\u2019\u00b7—-]+/, '').trim();
+    if (!stripped) return true;
+    // Starts with lowercase letter (not a capital-letter title)
+    if (/^[a-z]/.test(stripped)) return true;
+    // Contains conversational filler phrases (check both original and stripped)
+    const fillerRegex = /^(is also|is indeed|is a|here is|thank you|i will|i can|i think|let me|sure,|of course,|certainly,|absolutely|i'll use|yes,)/i;
+    if (fillerRegex.test(t) || fillerRegex.test(stripped)) return true;
+    // Too long for a title (>80 chars suggests it's a full sentence/paragraph)
+    if (t.length > 80) return true;
+    return false;
+  }
+
+  /**
    * Smart truncation of user prompt to a readable session title.
    * - Strip common prefixes ("帮我", "你看下", "你帮我看下", etc.)
    * - Truncate to max 60 chars at a sentence boundary or whitespace
@@ -415,6 +435,11 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
       }
     }
 
+    // ponytail: final guard — reject AI fragments that slipped through any path
+    if (sessionName && this.looksLikeAIFragment(sessionName)) {
+      sessionName = undefined;
+    }
+
     return {
       ...parsed,
       sessionName: normalizeSessionName(sessionName, 'Untitled Claude Session'),
@@ -478,9 +503,18 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
           if (trimmedTitle === 'Untitled Claude Session') {
             return undefined;
           }
+          // Reject titles that look like AI response fragments: parenthesized
+          // phrases, lowercase starts, or sentences that don't look like names.
+          if (this.looksLikeAIFragment(trimmedTitle)) {
+            return undefined;
+          }
           return { title: trimmedTitle, kind: 'custom-title' };
         }
         if (eventType === 'ai-title' && aiTitle?.trim()) {
+          // Also reject ai-title that looks like an AI fragment.
+          if (this.looksLikeAIFragment(aiTitle.trim())) {
+            return undefined;
+          }
           return { title: aiTitle.trim(), kind: 'ai-title' };
         }
       }
