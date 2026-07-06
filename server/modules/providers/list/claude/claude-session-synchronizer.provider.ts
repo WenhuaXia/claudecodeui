@@ -194,8 +194,10 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
       // Find first text content block
       for (const block of data?.content || []) {
         if (block?.type === 'text' && typeof block.text === 'string' && block.text.trim().length > 0) {
-          // ponytail: strip thinking tags that leak into text block (e.g. "聊天")
-          const title = block.text.replace(/<\?xml.*?\?>|<\thinking[^>]*>.*?<\/thinking>|<\/?thinking[^>]*>/gs, '').trim();
+          // ponytail: strip leaked thinking/xml tags from text block. Two-pass: complete blocks first, then orphan tags.
+          let title = block.text.replace(/<\?xml[\s\S]*?\?>/g, '');
+          title = title.replace(/<(?:anthropic:)?(ant)?Thinking[^>]*>[\s\S]*?<\/(?:anthropic:)?(ant)?Thinking>/gi, '');
+          title = title.replace(/<(?:\/)?(?:anthropic:)?(ant)?Thinking[^>]*>/gi, '').trim();
           // Guard: reject titles that look like prompt quotes (e.g. "- **User's message:** ...")
           // or that match the user prompt itself.
           if (this.isPromptMatch(title, userPrompt)) continue;
@@ -438,7 +440,7 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
 
     // ponytail: strip leaked thinking/xml tags from any title source, then reject AI fragments
     if (sessionName) {
-      sessionName = sessionName.replace(/<\?xml.*?\?>|<\thinking[^>]*>.*?<\/thinking>|<\/?thinking[^>]*>/gs, '').trim();
+      sessionName = sessionName.replace(/<\?xml[\s\S]*?\?>/g, '').replace(/<(\/?)(?:anthropic:)?(ant)?Thinking[^>]*>/gi, '').trim();
       if (this.looksLikeAIFragment(sessionName)) {
         sessionName = undefined;
       }
