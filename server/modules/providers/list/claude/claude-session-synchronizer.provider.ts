@@ -194,7 +194,8 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
       // Find first text content block
       for (const block of data?.content || []) {
         if (block?.type === 'text' && typeof block.text === 'string' && block.text.trim().length > 0) {
-          const title = block.text.trim();
+          // ponytail: strip thinking tags that leak into text block (e.g. "聊天")
+          const title = block.text.replace(/<\?xml.*?\?>|<\thinking[^>]*>.*?<\/thinking>|<\/?thinking[^>]*>/gs, '').trim();
           // Guard: reject titles that look like prompt quotes (e.g. "- **User's message:** ...")
           // or that match the user prompt itself.
           if (this.isPromptMatch(title, userPrompt)) continue;
