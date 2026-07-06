@@ -457,14 +457,31 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
 
   /**
    * Extract the last user prompt from the JSONL file for AI title generation.
-   * ponytail: fallback to first user message if last-prompt event is missing.
+   * ponytail: prioritize type="user" events over last-prompt, because Ponytail hooks
+   * can inject massive system instructions into last-prompt that shadow the real user message.
    */
   private async extractLastPrompt(filePath: string): Promise<string | undefined> {
     try {
       const content = await readFile(filePath, 'utf8');
       const lines = content.split(/\r?\n/);
 
-      // Primary: scan from end for last-prompt event
+      // Primary: find the last type="user" event — this is the actual user message
+      for (let index = lines.length - 1; index >= 0; index -= 1) {
+        const line = lines[index]?.trim();
+        if (!line) continue;
+        let parsed: unknown;
+        try { parsed = JSON.parse(line); } catch { continue; }
+        const data = parsed as Record<string, unknown>;
+        if (data.type === 'user') {
+          const msg = (data as any).message;
+          if (msg?.role === 'user' && Array.isArray(msg.content)) {
+            const textBlock = msg.content.find((b: any) => b.type === 'text');
+            if (textBlock?.text?.trim()) return textBlock.text.trim();
+          }
+        }
+      }
+
+      // Fallback: scan for last-prompt event (may contain Ponytail/injected instructions)
       for (let index = lines.length - 1; index >= 0; index -= 1) {
         const line = lines[index]?.trim();
         if (!line) continue;
@@ -474,22 +491,6 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
         if (data.type === 'last-prompt') {
           const lastPrompt = typeof data.lastPrompt === 'string' ? data.lastPrompt : undefined;
           if (lastPrompt?.trim()) return lastPrompt.trim();
-        }
-      }
-
-      // Fallback: find first user message content
-      for (let index = 0; index < lines.length; index += 1) {
-        const line = lines[index]?.trim();
-        if (!line) continue;
-        let parsed: unknown;
-        try { parsed = JSON.parse(line); } catch { continue; }
-        const data = parsed as Record<string, unknown>;
-        if (data.type === 'message' && data.role === 'user') {
-          const content = (data as any).content;
-          if (Array.isArray(content)) {
-            const textBlock = content.find((b: any) => b.type === 'text');
-            if (textBlock?.text?.trim()) return textBlock.text.trim();
-          }
         }
       }
     } catch { /* ignore */ }
