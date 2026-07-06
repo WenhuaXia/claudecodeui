@@ -326,6 +326,8 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
     if (fillerRegex.test(t) || fillerRegex.test(stripped)) return true;
     // Too long for a title (>80 chars suggests it's a full sentence/paragraph)
     if (t.length > 80) return true;
+    // ponytail: catch "(Session start)?", "(New chat)" etc. — parenthesized AI placeholders
+    if (/^\(.*\)[\s:]*[.?!]?\s*$/.test(t)) return true;
     return false;
   }
 
@@ -440,7 +442,8 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
 
     // ponytail: strip leaked thinking/xml tags from any title source, then reject AI fragments
     if (sessionName) {
-      sessionName = sessionName.replace(/<\?xml[\s\S]*?\?>/g, '').replace(/<(\/?)(?:anthropic:)?(ant)?Thinking[^>]*>/gi, '').trim();
+      // ponytail: strip ALL xml tags (thinking, answer, etc.), not just Thinking — shortest regex covers every leaked tag
+      sessionName = sessionName.replace(/<[^>]+>/g, '').trim();
       if (this.looksLikeAIFragment(sessionName)) {
         sessionName = undefined;
       }
