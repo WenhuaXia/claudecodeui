@@ -194,10 +194,20 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
       // Find first text content block
       for (const block of data?.content || []) {
         if (block?.type === 'text' && typeof block.text === 'string' && block.text.trim().length > 0) {
-          // ponytail: strip leaked thinking/xml tags from text block. Two-pass: complete blocks first, then orphan tags.
+          // strip ALL leaked thinking/xml tags — covers <Thinking>, <thinking>, <antThinking>, <anthropic:thinking>, </answer>, etc.
           let title = block.text.replace(/<\?xml[\s\S]*?\?>/g, '');
-          title = title.replace(/<(?:anthropic:)?(ant)?Thinking[^>]*>[\s\S]*?<\/(?:anthropic:)?(ant)?Thinking>/gi, '');
-          title = title.replace(/<(?:\/)?(?:anthropic:)?(ant)?Thinking[^>]*>/gi, '').trim();
+          // complete thinking blocks (opening + closing, case-insensitive, handles newline content)
+          title = title.replace(/<(?:anthropic:)?(?:ant)?Thinking[^>]*>[\s\S]*?<\/(?:anthropic:)?(?:ant)?Thinking>/gi, '');
+          // orphan thinking tags
+          title = title.replace(/<(?:\/)?(?:anthropic:)?(?:ant)?Thinking[^>]*>/gi, '');
+          // ALL remaining XML tags (catches <answer>, </answer>, <thinking>, etc.)
+          title = title.replace(/<[^>]+>/g, '').trim();
+
+          // reject multi-line or list-like output — a title is never multi-line
+          if (title.includes('\n') || title.includes('\r')) continue;
+          if (/^[-*•]\s/.test(title)) continue; // starts with bullet
+          if (title.split(/[-*•]/).length > 2) continue; // contains multiple bullet markers
+
           // Guard: reject titles that look like prompt quotes (e.g. "- **User's message:** ...")
           // or that match the user prompt itself.
           if (this.isPromptMatch(title, userPrompt)) continue;
@@ -316,13 +326,18 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
    */
   private looksLikeAIFragment(title: string): boolean {
     const t = title.trim();
+    // Title should never contain newlines — AI thinking leaks often include them
+    if (t.includes('\n') || t.includes('\r')) return true;
+    // Title should never contain bullet list markers
+    if (t.includes(' - ') || t.includes(' -') || t.includes('- ') || /[-*•]\s/.test(t)) return true;
     // Strip leading punctuation and whitespace, then check the core content
     const stripped = t.replace(/^[\s\(\)\[\],.\u201c\u201d\u2018\u2019\u00b7—-]+/, '').trim();
     if (!stripped) return true;
     // Starts with lowercase letter (not a capital-letter title)
     if (/^[a-z]/.test(stripped)) return true;
-    // Contains AI thinking leaks or conversational filler (check both original and stripped)
-    const fillerRegex = /^(is also|is indeed|is a|here is|thank you|i will|i can|i think|i should|let me|sure,|of course,|certainly,|absolutely|i'll use|yes,)/i;
+    // Contains AI thinking leaks or conversational filler — use word boundary instead of ^ anchor
+    // so that ", I should use Chinese" is caught even after stripping leading punctuation
+    const fillerRegex = /\b(is also|is indeed|is a |here is |thank you|i will|i can|i think|i should|let me|sure,|of course,|certainly,|absolutely|i'll use|yes,)/i;
     if (fillerRegex.test(t) || fillerRegex.test(stripped)) return true;
     // ponytail: catch AI thinking leaks — "potential titles:", "title for this session", etc.
     if (/potential titles|title for|title:|here are/gi.test(t)) return true;
