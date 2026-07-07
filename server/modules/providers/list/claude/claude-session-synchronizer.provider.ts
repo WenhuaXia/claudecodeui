@@ -245,39 +245,74 @@ User message:\n${userPrompt.slice(0, 500)}`,
 
   /**
    * Lightweight title extractor for reasoning models that only produce thinking blocks.
-   * Looks for "Draft: XXX", numbered list items, or bullet candidates — nothing more.
+   * Qwen structure: analysis steps → "Generate Output" / "Draft Title" section with bullet candidates.
+   * We skip analysis steps and look for the actual chosen title.
    */
   private extractTitleFromThinking(thinking: string, userPrompt: string): string | undefined {
     const p = userPrompt.trim().toLowerCase();
 
-    // 1. "Draft: XXX" pattern
-    const draftMatch = thinking.match(/Draft:\s*(.+?)(?:\n|$)/);
-    if (draftMatch) {
-      const c = draftMatch[1].trim();
-      if (c.length >= 2 && c.length <= 60 && c.toLowerCase() !== p) return c;
+    // 1. "Generate Output" section — bullet item after this header
+    const genMatch = thinking.match(/Generate Output[^\n]*\n\s*-\s*(.+?)(?:\n|$)/i);
+    if (genMatch) {
+      const c = genMatch[1].trim();
+      if (c.length >= 2 && c.length <= 30 && this.isValidTitleCandidate(c, p)) return c;
     }
 
-    // 2. Numbered list items (e.g. "1. 郴州天气 (Chenzhou Weather) - 4 chars")
-    const numberedMatch = thinking.match(/^\d+\.\s+(.+?)(?:\s+-\s+|$)/m);
-    if (numberedMatch) {
-      let c = numberedMatch[1].trim();
-      // Strip trailing parenthetical explanation
-      c = c.replace(/\s*\(.*\)\s*$/, '').trim();
-      // Strip trailing metadata like "- X characters"
-      c = c.replace(/\s*-\s*\d+\s+\w+\.?\s*(?:Good\.?)?$/i, '').trim();
-      if (c.length >= 2 && c.length <= 60 && c.toLowerCase() !== p) return c;
+    // 2. "Draft Title" section — look for "Subject: XXX" or first bullet
+    const draftSectionMatch = thinking.match(/Draft Title[^\n]*\n((?:[\s\S]*?)(?:\n\d+\.|$))/i);
+    if (draftSectionMatch) {
+      const section = draftSectionMatch[1];
+      const subjectMatch = section.match(/Subject:\s*([^(]+)\s*\(/);
+      if (subjectMatch) {
+        const c = subjectMatch[1].trim();
+        if (c.length >= 2 && c.length <= 30 && this.isValidTitleCandidate(c, p)) return c;
+      }
+      // Fallback: first bullet in section
+      for (const m of section.matchAll(/^\s*-\s*([^\n()]{2,30})/gm)) {
+        const c = m[1].trim().replace(/^Subject:\s*/, '');
+        if (c && this.isValidTitleCandidate(c, p)) return c;
+      }
     }
 
-    // 3. First quoted candidate that isn't the user prompt or prompt instruction noise
+    // 3. "Draft:" inline pattern
+    const inlineDraft = thinking.match(/Draft:\s*([^(]{2,30})(?:\s+\(|\n|$)/);
+    if (inlineDraft) {
+      const c = inlineDraft[1].trim();
+      if (this.isValidTitleCandidate(c, p)) return c;
+    }
+
+    // 4. Bullet items under "Drafts:" or "Alternatives:" sections
+    for (const sectionMatch of thinking.matchAll(/(?:Drafts|Alternatives|备选)[^\n]*\n((?:\s*-\s+[^\n]*\n?)+)/i)) {
+      const section = sectionMatch[1];
+      for (const m of section.matchAll(/-\s+([^\n()]{2,30})/g)) {
+        const c = m[1].trim();
+        if (this.isValidTitleCandidate(c, p)) return c;
+      }
+    }
+
+    // 5. Quoted candidates that look like real titles (Chinese or multi-word English)
     for (const m of thinking.matchAll(/"([^"]{2,30})"/g)) {
       const c = m[1].trim();
       if (c.toLowerCase() === p) continue;
       if (c.toLowerCase().includes(p) && c.length > 10) continue;
-      if (/^(For greetings|Output ONLY|Max 30|The language|Do NOT)/.test(c)) continue;
-      return c;
+      // Skip noise from system prompt / analysis
+      if (/^(For greetings|Output|Max 30|Language|Do NOT|Hello|Chinese|English|Daily Chat|General Chat|Greeting|Subject|Content:|Goal:|Insight|Inspiration|Analysis)/.test(c)) continue;
+      // Skip single English words that look like analysis keywords
+      if (/^(The|This|That|How|What|Who|When|Where|Why|As|Is|Are|Was|Were|Has|Have|Had|And|Or|But|Not|So|It|A|An)/.test(c)) continue;
+      // Skip single lowercase English words (likely analysis noise, not titles)
+      if (/^[a-z]+$/.test(c) && !c.includes(' ')) continue;
+      // Accept Chinese titles or multi-word English titles
+      if (/[\u4e00-\u9fff]/.test(c) || c.includes(' ')) return c;
     }
 
     return undefined;
+  }
+
+  /** Check if candidate is a valid title (not the user prompt, not analysis noise). */
+  private isValidTitleCandidate(c: string, promptLower: string): boolean {
+    if (c.length < 2 || c.length > 30) return false;
+    if (c.toLowerCase() === promptLower) return false;
+    return true;
   }
 
   /**
