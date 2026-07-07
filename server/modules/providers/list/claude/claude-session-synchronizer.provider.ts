@@ -155,18 +155,17 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
   }
 
   /**
-   * Generate a concise session title.
-   * Tries AI generation first (for non-reasoning models that produce text blocks).
-   * Falls back to smart truncation of the user's first prompt — reliable across all models.
+   * Generate a concise session title via AI.
+   * Uses a strongly-constrained prompt so the model returns a proper title directly.
+   * Falls back to smart truncation of the user prompt if AI call fails.
    */
   private async generateAiTitle(userPrompt: string): Promise<string | undefined> {
     const config = await this.resolveAnthropicConfig();
     if (!config) return this.truncateToTitle(userPrompt);
 
     const url = `${config.baseUrl.replace(/\/+$/, '')}/v1/messages`;
-
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000); // 8s timeout
+    const timer = setTimeout(() => controller.abort(), 8000);
 
     try {
       const res = await fetch(url, {
@@ -179,11 +178,21 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
         },
         body: JSON.stringify({
           model: config.model,
-          max_tokens: 512,
+          max_tokens: 128,
           messages: [
             {
               role: 'user',
-              content: `Generate a short, descriptive title (max 50 chars) for a chat session. Use the same language as the user's message. Just return the title, nothing else.\n\nUser's first message:\n${userPrompt.slice(0, 500)}`,
+              content: `You are a session titler. Generate a 2-10 word title that captures the TOPIC of the user's message.
+Rules:
+- Use the same language as the user's message (Chinese→Chinese, English→English, mixed→match the dominant language)
+- Do NOT repeat the user's exact words verbatim — summarize the intent or topic
+- For greetings ("hello", "你好", "hi"), use a domain-agnostic title like "General Chat" / "日常闲聊"
+- For questions, summarize the subject (e.g. "天气查询", "Weather Query", "李白简介")
+- For URLs/sharing, name the topic discussed (e.g. "DeepSeek对话启发", "Code Review")
+- Max 30 characters. NO newlines, NO lists, NO explanations.
+- Output ONLY the title text, nothing else.
+
+User message:\n${userPrompt.slice(0, 500)}`,
             },
           ],
         }),
@@ -191,33 +200,19 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
 
       if (!res.ok) return this.truncateToTitle(userPrompt);
       const data: any = await res.json();
-      // Find first text content block
+
+      // Extract title from the first text block
       for (const block of data?.content || []) {
-        if (block?.type === 'text' && typeof block.text === 'string' && block.text.trim().length > 0) {
-          // strip ALL leaked thinking/xml tags — covers <Thinking>, <thinking>, <antThinking>, <anthropic:thinking>, </answer>, etc.
-          let title = block.text.replace(/<\?xml[\s\S]*?\?>/g, '');
-          // complete thinking blocks (opening + closing, case-insensitive, handles newline content)
-          title = title.replace(/<(?:anthropic:)?(?:ant)?Thinking[^>]*>[\s\S]*?<\/(?:anthropic:)?(?:ant)?Thinking>/gi, '');
-          // orphan thinking tags
-          title = title.replace(/<(?:\/)?(?:anthropic:)?(?:ant)?Thinking[^>]*>/gi, '');
-          // ALL remaining XML tags (catches <answer>, </answer>, <thinking>, etc.)
-          title = title.replace(/<[^>]+>/g, '').trim();
-
-          // reject multi-line or list-like output — a title is never multi-line
+        if (block?.type === 'text' && typeof block.text === 'string') {
+          let title = block.text.replace(/<[^>]+>/g, '').trim();
+          if (title.length === 0) continue;
           if (title.includes('\n') || title.includes('\r')) continue;
-          if (/^[-*•]\s/.test(title)) continue; // starts with bullet
-          if (title.split(/[-*•]/).length > 2) continue; // contains multiple bullet markers
-
-          // Guard: reject titles that look like prompt quotes (e.g. "- **User's message:** ...")
-          // or that match the user prompt itself.
-          if (this.isPromptMatch(title, userPrompt)) continue;
-          if (title.length <= 60) return title;
-          return title.slice(0, 60);
+          if (title.length > 60) title = title.slice(0, 60);
+          return title;
         }
       }
-      // No text block — reasoning model only produced thinking. Extract title from thinking.
-      const titleFromThinking = this.extractTitleFromThinking(data, userPrompt);
-      return titleFromThinking ?? this.truncateToTitle(userPrompt);
+
+      return this.truncateToTitle(userPrompt);
     } catch {
       return this.truncateToTitle(userPrompt);
     } finally {
@@ -226,124 +221,19 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
   }
 
   /**
-   * Extract a title from thinking blocks produced by reasoning models.
-   * Reasoning models (e.g. Qwen) produce thinking instead of text blocks.
-   * We look for the final chosen title in patterns like:
-   *   - "Let's go with `TITLE`" or "Let's go with "TITLE""
-   *   - "I'll use `TITLE`" / backtick-quoted candidates
-   *   - Bullet list items with domain keywords
-   * If none found, falls back to truncateToTitle.
-   *
-   * CRITICAL: userPrompt is passed so we can reject candidates that are
-   * literally the user's own message echoed back in the thinking block.
-   */
-  private extractTitleFromThinking(data: any, userPrompt: string): string | undefined {
-    for (const block of data?.content || []) {
-      if (block?.type === 'thinking' && typeof block.thinking === 'string') {
-        const thinking = block.thinking;
-        // 1. Decision pattern with quotes: "Let's go with "TITLE""
-        const decisionPatterns = [
-          /(?:Let's go with|I'll use|I choose|I go with|Best choice|Final choice|最终选择)[：:]\s*"([^"]{5,60})"/i,
-          /(?:title is|title:|the title is)\s*"([^"]{5,60})"/i,
-        ];
-        for (const pattern of decisionPatterns) {
-          const match = thinking.match(pattern);
-          const candidate = match?.[1]?.trim();
-          if (candidate && !this.isPromptMatch(candidate, userPrompt)) return candidate;
-        }
-        // 2. Decision pattern with backticks: `Let's go with \`TITLE\``
-        const backtickPatterns = [
-          /(?:Let's go with|I'll use|I choose|I go with|Best choice|Final choice)[：:]\s*`([^`]{5,60})`/i,
-        ];
-        for (const pattern of backtickPatterns) {
-          const match = thinking.match(pattern);
-          const candidate = match?.[1]?.trim();
-          if (candidate && !this.isPromptMatch(candidate, userPrompt)) return candidate;
-        }
-        // 3. All backtick-quoted phrases (model's brainstormed candidates)
-        //    Filter out any that match the user's prompt — the model often
-        //    quotes the user message in its thinking, not the generated title.
-        const allBackticks = [...thinking.matchAll(/`([^`]{5,60})`/g)];
-        const validBackticks = allBackticks.filter((m) => !this.isPromptMatch(m[1], userPrompt));
-        if (validBackticks.length > 0) {
-          return validBackticks[validBackticks.length - 1][1].trim();
-        }
-        // 4. Bullet titles with domain keywords
-        const bulletTitles = thinking.match(/[-*]\s+(.{5,60}(?:项目|配置|修复|分析|查看|环境|讨论|方案|优化|测试|部署|升级|迁移|排查|对比|总结|问题|报错|失败|检查|安装|设置))/);
-        if (bulletTitles) return bulletTitles[1].trim();
-        // 5. All quoted phrases (double quotes) — same prompt guard as above
-        const allQuotes = [...thinking.matchAll(/"([^"]{5,60})"/g)];
-        const validQuotes = allQuotes.filter((m) => !this.isPromptMatch(m[1], userPrompt));
-        if (validQuotes.length > 0) {
-          return validQuotes[validQuotes.length - 1][1].trim();
-        }
-      }
-    }
-    return undefined;
-  }
-
-  /**
-   * Returns true if candidate is the user's prompt or a close variant of it.
-   * This prevents the model quoting the user message in thinking from being
-   * mistaken for a generated title.
-   */
-  private isPromptMatch(candidate: string, userPrompt: string): boolean {
-    // Strip leading markdown prefixes like "- **User's message:** ", "- **User:** ", etc.
-    // Also strip wrapper quotes and backticks that the model uses when quoting user text.
-    let c = candidate.trim();
-    c = c.replace(/^[-*]\s*\*\*[^*]*\*\*\s*:?[""]?\s*/, '');
-    c = c.replace(/^[-*]\s*["`]\s*/, '');
-    c = c.replace(/["`\s]+$/, '').trim();
-    c = c.toLowerCase();
-
-    const p = userPrompt.trim().toLowerCase();
-    if (c === p) return true;
-    // Strip trailing punctuation for comparison
-    const pClean = p.replace(/[。!?.?!，,、；;:：]+$/, '');
-    if (c === pClean) return true;
-    // Direct substring check — but don't reject valid titles just because they're
-    // contained in the prompt (e.g., short title like "修复bug" appears in "帮我修复bug")
-    const isNearFullOverlap = (left: string, right: string): boolean => {
-      const shorter = Math.min(left.length, right.length);
-      const longer = Math.max(left.length, right.length);
-      return shorter >= 4 && longer > 0 && shorter / longer >= 0.8 && (left.includes(right) || right.includes(left));
-    };
-    if (isNearFullOverlap(c, p)) return true;
-    if (isNearFullOverlap(c, pClean)) return true;
-    // One starts with the other
-    if (c.length >= 4 && p.length >= 4 && (c.startsWith(p) || p.startsWith(c))) return true;
-    // Shared prefix overlap
-    if (c.length + p.length > 0 && Math.min(c.length, p.length) / Math.max(c.length, p.length) > 0.5) {
-      if (c.includes(p.slice(0, 8)) || p.includes(c.slice(0, 8))) return true;
-    }
-    return false;
-  }
-
-  /**
    * Detect if a string looks like an AI response fragment rather than a
-   * human-readable session title. Catches cases where Claude SDK writes
-   * response text as custom-title (e.g. "(New chat) is also good. I will use").
+   * human-readable session title. Used for custom-title events from Claude CLI.
    */
   private looksLikeAIFragment(title: string): boolean {
     const t = title.trim();
-    // Title should never contain newlines — AI thinking leaks often include them
     if (t.includes('\n') || t.includes('\r')) return true;
-    // Title should never contain bullet list markers
-    if (t.includes(' - ') || t.includes(' -') || t.includes('- ') || /[-*•]\s/.test(t)) return true;
-    // Strip leading punctuation and whitespace, then check the core content
-    const stripped = t.replace(/^[\s\(\)\[\],.\u201c\u201d\u2018\u2019\u00b7—-]+/, '').trim();
+    if (/[-*•]\s/.test(t)) return true;
+    const stripped = t.replace(/[\s\(\)\[\],.\u201c\u201d\u2018\u2019\u00b7—-]+/, '').trim();
     if (!stripped) return true;
-    // Starts with lowercase letter (not a capital-letter title)
-    if (/^[a-z]/.test(stripped)) return true;
-    // Contains AI thinking leaks or conversational filler — use word boundary instead of ^ anchor
-    // so that ", I should use Chinese" is caught even after stripping leading punctuation
     const fillerRegex = /\b(is also|is indeed|is a |here is |thank you|i will|i can|i think|i should|let me|sure,|of course,|certainly,|absolutely|i'll use|yes,)/i;
     if (fillerRegex.test(t) || fillerRegex.test(stripped)) return true;
-    // ponytail: catch AI thinking leaks — "potential titles:", "title for this session", etc.
     if (/potential titles|title for|title:|here are/gi.test(t)) return true;
-    // Too long for a title (>80 chars suggests it's a full sentence/paragraph)
     if (t.length > 80) return true;
-    // ponytail: catch "(Session start)?", "(New chat)" etc. — parenthesized AI placeholders
     if (/^\(.*\)[\s:]*[.?!]?\s*$/.test(t)) return true;
     return false;
   }
