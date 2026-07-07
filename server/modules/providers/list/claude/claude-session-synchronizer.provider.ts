@@ -165,7 +165,7 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
 
     const url = `${config.baseUrl.replace(/\/+$/, '')}/v1/messages`;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
+    const timer = setTimeout(() => controller.abort(), 15000);
 
     try {
       const res = await fetch(url, {
@@ -178,21 +178,15 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
         },
         body: JSON.stringify({
           model: config.model,
-          max_tokens: 128,
+          max_tokens: 512,
           messages: [
             {
               role: 'user',
-              content: `You are a session titler. Generate a 2-10 word title that captures the TOPIC of the user's message.
-Rules:
-- Use the same language as the user's message (Chinese→Chinese, English→English, mixed→match the dominant language)
-- Do NOT repeat the user's exact words verbatim — summarize the intent or topic
-- For greetings ("hello", "你好", "hi"), use a domain-agnostic title like "General Chat" / "日常闲聊"
-- For questions, summarize the subject (e.g. "天气查询", "Weather Query", "李白简介")
-- For URLs/sharing, name the topic discussed (e.g. "DeepSeek对话启发", "Code Review")
-- Max 30 characters. NO newlines, NO lists, NO explanations.
-- Output ONLY the title text, nothing else.
+              content: `生成会话标题（2-10字）。与用户同语言。总结主题，不照抄原话。
+问候→"日常闲聊"/"General Chat"；问题→总结主语；分享→讨论主题。
+最多30字，只输出标题，无解释。
 
-User message:\n${userPrompt.slice(0, 500)}`,
+用户：${userPrompt.slice(0, 300)}`,
             },
           ],
         }),
