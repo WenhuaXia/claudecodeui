@@ -210,6 +210,11 @@ User message:\n${userPrompt.slice(0, 500)}`,
           if (title.length > 60) title = title.slice(0, 60);
           return title;
         }
+        // Reasoning models may only produce thinking blocks — extract from there
+        if (block?.type === 'thinking' && typeof block.thinking === 'string') {
+          const titleFromThinking = this.extractTitleFromThinking(block.thinking, userPrompt);
+          if (titleFromThinking) return titleFromThinking;
+        }
       }
 
       return this.truncateToTitle(userPrompt);
@@ -236,6 +241,43 @@ User message:\n${userPrompt.slice(0, 500)}`,
     if (t.length > 80) return true;
     if (/^\(.*\)[\s:]*[.?!]?\s*$/.test(t)) return true;
     return false;
+  }
+
+  /**
+   * Lightweight title extractor for reasoning models that only produce thinking blocks.
+   * Looks for "Draft: XXX", numbered list items, or bullet candidates — nothing more.
+   */
+  private extractTitleFromThinking(thinking: string, userPrompt: string): string | undefined {
+    const p = userPrompt.trim().toLowerCase();
+
+    // 1. "Draft: XXX" pattern
+    const draftMatch = thinking.match(/Draft:\s*(.+?)(?:\n|$)/);
+    if (draftMatch) {
+      const c = draftMatch[1].trim();
+      if (c.length >= 2 && c.length <= 60 && c.toLowerCase() !== p) return c;
+    }
+
+    // 2. Numbered list items (e.g. "1. 郴州天气 (Chenzhou Weather) - 4 chars")
+    const numberedMatch = thinking.match(/^\d+\.\s+(.+?)(?:\s+-\s+|$)/m);
+    if (numberedMatch) {
+      let c = numberedMatch[1].trim();
+      // Strip trailing parenthetical explanation
+      c = c.replace(/\s*\(.*\)\s*$/, '').trim();
+      // Strip trailing metadata like "- X characters"
+      c = c.replace(/\s*-\s*\d+\s+\w+\.?\s*(?:Good\.?)?$/i, '').trim();
+      if (c.length >= 2 && c.length <= 60 && c.toLowerCase() !== p) return c;
+    }
+
+    // 3. First quoted candidate that isn't the user prompt or prompt instruction noise
+    for (const m of thinking.matchAll(/"([^"]{2,30})"/g)) {
+      const c = m[1].trim();
+      if (c.toLowerCase() === p) continue;
+      if (c.toLowerCase().includes(p) && c.length > 10) continue;
+      if (/^(For greetings|Output ONLY|Max 30|The language|Do NOT)/.test(c)) continue;
+      return c;
+    }
+
+    return undefined;
   }
 
   /**
