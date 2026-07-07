@@ -448,8 +448,9 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
 
     // If still no title from custom-title/ai-title events, try AI generation
     // using the last user prompt from the JSONL file.
+    let lastPrompt: string | undefined;
     if (!sessionName) {
-      const lastPrompt = await this.extractLastPrompt(filePath);
+      lastPrompt = await this.extractLastPrompt(filePath);
       if (lastPrompt) {
         console.debug(`[AutoTitle] Generating AI title for session ${parsed.sessionId}`);
         sessionName = await this.generateAiTitle(lastPrompt);
@@ -462,7 +463,8 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
       // ponytail: strip ALL xml tags (thinking, answer, etc.), not just Thinking — shortest regex covers every leaked tag
       sessionName = sessionName.replace(/<[^>]+>/g, '').trim();
       if (this.looksLikeAIFragment(sessionName)) {
-        sessionName = undefined;
+        // AI generated a garbage title — fall back to user prompt truncation instead of 'Untitled'
+        sessionName = lastPrompt ? this.truncateToTitle(lastPrompt) : undefined;
       }
     }
 
