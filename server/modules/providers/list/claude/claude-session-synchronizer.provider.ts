@@ -321,9 +321,11 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
     if (!stripped) return true;
     // Starts with lowercase letter (not a capital-letter title)
     if (/^[a-z]/.test(stripped)) return true;
-    // Contains conversational filler phrases (check both original and stripped)
-    const fillerRegex = /^(is also|is indeed|is a|here is|thank you|i will|i can|i think|let me|sure,|of course,|certainly,|absolutely|i'll use|yes,)/i;
+    // Contains AI thinking leaks or conversational filler (check both original and stripped)
+    const fillerRegex = /^(is also|is indeed|is a|here is|thank you|i will|i can|i think|i should|let me|sure,|of course,|certainly,|absolutely|i'll use|yes,)/i;
     if (fillerRegex.test(t) || fillerRegex.test(stripped)) return true;
+    // ponytail: catch AI thinking leaks — "potential titles:", "title for this session", etc.
+    if (/potential titles|title for|title:|here are/gi.test(t)) return true;
     // Too long for a title (>80 chars suggests it's a full sentence/paragraph)
     if (t.length > 80) return true;
     // ponytail: catch "(Session start)?", "(New chat)" etc. — parenthesized AI placeholders
