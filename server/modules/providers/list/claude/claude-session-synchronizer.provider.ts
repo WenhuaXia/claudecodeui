@@ -178,7 +178,10 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
         },
         body: JSON.stringify({
           model: config.model,
-          max_tokens: 512,
+          max_tokens: 1024,
+          // ponytail: vLLM Qwen3 needs chat_template_kwargs to disable thinking; no-op on Claude.
+          // If headroom proxy strips this, 1024 tokens gives thinking+text room.
+          extra_body: { chat_template_kwargs: { enable_thinking: false } },
           messages: [
             {
               role: 'user',
@@ -194,6 +197,10 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
 
       if (!res.ok) return this.truncateToTitle(userPrompt);
       const data: any = await res.json();
+
+      // ponytail: debug — inspect actual response structure
+      const blockTypes = (data?.content || []).map((b: any) => `${b.type}(${typeof b.text === 'string' ? b.text.length : typeof b.thinking === 'string' ? b.thinking.length : 0})`);
+      console.debug(`[AutoTitle] Response blocks: ${blockTypes.join(', ')}`, { stop_reason: data?.stop_reason, usage: data?.usage });
 
       // Extract title from the first text block
       for (const block of data?.content || []) {
