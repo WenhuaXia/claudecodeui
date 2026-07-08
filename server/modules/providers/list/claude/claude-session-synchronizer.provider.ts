@@ -372,34 +372,15 @@ export class ClaudeSessionSynchronizer implements IProviderSessionSynchronizer {
     const existingSession = sessionsDb.getSessionByProviderSessionId(parsed.sessionId)
       ?? sessionsDb.getSessionById(parsed.sessionId);
     const existingSessionName = existingSession?.custom_name;
-    // Only skip title generation if the session already has a real custom name.
-    // We must not skip when:
-    // 1. It is the default 'Untitled Claude Session' placeholder
-    // 2. It is a long truncated prompt (>60 chars)
-    // 3. It matches the first user prompt (meaning it was set from truncateToTitle, not AI)
-    let shouldSkip = false;
+    // If the session already has a name set in the DB, trust it — whether it came from
+    // the user renaming, the AI, or a prior sync pass. Only regenerate for the default
+    // placeholder so new sessions still get titles.
+    // (Previous logic tried to detect "prompt-derived" names and regenerate them, but
+    // couldn't distinguish user renames that matched the prompt from auto-generated ones.)
     if (existingSessionName && existingSessionName !== 'Untitled Claude Session') {
-      // Check if the existing name is just the raw prompt or a prefix of it
-      const lastPrompt = await this.extractLastPrompt(filePath);
-      const trimmedPrompt = lastPrompt?.trim();
-      const trimmedExistingName = existingSessionName.trim();
-      if (
-        trimmedPrompt
-        && (
-          trimmedExistingName === trimmedPrompt
-          || (trimmedExistingName.length >= 60 && trimmedPrompt.startsWith(trimmedExistingName))
-        )
-      ) {
-        // Existing name is derived from the prompt, not AI generated — regenerate
-        shouldSkip = false;
-      } else {
-        shouldSkip = true;
-      }
-    }
-    if (shouldSkip) {
       return {
         ...parsed,
-        sessionName: normalizeSessionName(existingSessionName ?? undefined, 'Untitled Claude Session'),
+        sessionName: normalizeSessionName(existingSessionName, 'Untitled Claude Session'),
       };
     }
 
