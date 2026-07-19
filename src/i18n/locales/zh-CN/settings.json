@@ -568,5 +568,22 @@
     "installAriaLabel": "插件 git 仓库 URL",
     "tab": "标签",
     "runningStatus": "运行中"
+  },
+  "browserSettings": {
+    "title": "浏览器设置",
+    "description": "配置 AI 代理工作流的浏览器自动化",
+    "enableLabel": "启用浏览器",
+    "enableDescription": "允许 AI 代理使用浏览器执行网页抓取、测试和自动化等任务",
+    "statusReady": "就绪",
+    "statusDisabled": "已禁用",
+    "statusSetupRequired": "需要设置",
+    "installed": "已安装",
+    "missing": "未安装",
+    "checking": "检查中...",
+    "installButton": "安装",
+    "installPrompt": "Playwright 浏览器运行环境未安装。是否立即安装？",
+    "runtimeRequired": "使用浏览器功能需要浏览器运行环境",
+    "ariaLabel": "切换浏览器",
+    "browserUseSettingsChanged": "浏览器设置已更改"
   }
 }
