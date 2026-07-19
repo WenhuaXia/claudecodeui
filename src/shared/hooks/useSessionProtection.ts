@@ -25,6 +25,18 @@ const sessionActivitiesMatch = (left: SessionActivity, right: SessionActivity): 
   && Boolean(left.background) === Boolean(right.background)
   && backgroundTasksKey(left.tasks) === backgroundTasksKey(right.tasks);
 
+/**
+ * Minimum time a session must have been in "processing" before an idle ack
+ * from `chat_subscribed` can clear it. Prevents the race where the user sends
+ * a message (markSessionProcessing fires immediately), then a chat.subscribe
+ * arrives at the server before Claude SDK has started its run — the server
+ * replies isProcessing: false, and the stale idle ack would wipe the fresh
+ * processing state. Since startedAt is always <= statusCheckSentAt, the
+ * existing ifStartedBefore guard can never block this path; a time floor is
+ * required instead.
+ */
+const PROCESSING_START_GRACE_MS = 5_000;
+
 const sessionActivityMapsMatch = (
   left: ReadonlyMap<string, SessionActivity>,
   right: ReadonlyMap<string, SessionActivity>,
@@ -116,6 +128,15 @@ export function useSessionProtection() {
       // started after the subscribe was sent, the idle ack describes the
       // older request and must not clear the newer one.
       if (opts?.ifStartedBefore !== undefined && existing.startedAt >= opts.ifStartedBefore) {
+        return prev;
+      }
+
+      // Grace period: do not clear a processing state that was established
+      // very recently. Prevents the race where the user sends a message
+      // (markSessionProcessing fires immediately), then a chat.subscribe
+      // reaches the server before the provider runtime has started its run.
+      const elapsedSinceStart = Date.now() - existing.startedAt;
+      if (elapsedSinceStart < PROCESSING_START_GRACE_MS) {
         return prev;
       }
 
