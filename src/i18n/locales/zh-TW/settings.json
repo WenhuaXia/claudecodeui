@@ -481,5 +481,22 @@
     "installAriaLabel": "外掛 git 儲存庫 URL",
     "tab": "分頁",
     "runningStatus": "執行中"
+  },
+  "browserSettings": {
+    "title": "瀏覽器設置",
+    "description": "配置 AI 代理工作流的瀏覽器自動化",
+    "enableLabel": "啟用瀏覽器",
+    "enableDescription": "允許 AI 代理使用瀏覽器執行網頁抓取、測試和自動化等任務",
+    "statusReady": "就绪",
+    "statusDisabled": "已禁用",
+    "statusSetupRequired": "需要设置",
+    "installed": "已安装",
+    "missing": "未安装",
+    "checking": "檢查中...",
+    "installButton": "安装",
+    "installPrompt": "Playwright 瀏覽器運行環境未安裝。是否立即安裝？",
+    "runtimeRequired": "使用瀏覽器功能需要瀏覽器運行環境",
+    "ariaLabel": "切换浏览器",
+    "browserUseSettingsChanged": "瀏覽器設置已更改"
   }
 }

@@ -70,11 +70,14 @@
     "sections": {
       "appearance": "Appearance",
       "toolDisplay": "Tool Display",
+      "viewOptions": "View Options",
       "inputSettings": "Input Settings"
     },
     "darkMode": "Dark Mode",
+    "autoExpandTools": "Auto-expand tools",
     "showRawParameters": "Show raw parameters",
     "showThinking": "Show thinking",
+    "autoScrollToBottom": "Auto-scroll to bottom",
     "sendByCtrlEnter": "Send by Ctrl+Enter",
     "voiceEnabled": "Voice (mic + read aloud)",
     "sendByCtrlEnterDescription": "When enabled, pressing Ctrl+Enter will send the message instead of just Enter. This is useful for IME users to avoid accidental sends.",
@@ -580,5 +583,22 @@
     "installAriaLabel": "Plugin git repository URL",
     "tab": "tab",
     "runningStatus": "running"
+  },
+  "browserSettings": {
+    "title": "Browser Settings",
+    "description": "Configure browser automation for AI agent workflows",
+    "enableLabel": "Enable Browser",
+    "enableDescription": "Allow AI agents to use a web browser for tasks like web scraping, testing, and automation",
+    "statusReady": "Ready",
+    "statusDisabled": "Disabled",
+    "statusSetupRequired": "Setup Required",
+    "installed": "Installed",
+    "missing": "Missing",
+    "checking": "Checking...",
+    "installButton": "Install",
+    "installPrompt": "Playwright browser runtime is not installed. Would you like to install it now?",
+    "runtimeRequired": "Browser runtime is required to use browser features",
+    "ariaLabel": "Toggle browser",
+    "browserUseSettingsChanged": "Browser settings changed"
   }
 }

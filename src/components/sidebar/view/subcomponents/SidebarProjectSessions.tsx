@@ -149,7 +149,7 @@ export default function SidebarProjectSessions({
               onClick={() => onLoadMoreSessions(project.projectId)}
               disabled={isLoadingMoreSessions}
             >
-              {isLoadingMoreSessions ? t('sessions.loadingSessions') : 'Load more sessions'}
+              {isLoadingMoreSessions ? t('sessions.loadingSessions') : t('sessions.showMore')}
             </Button>
           )}
         </>
