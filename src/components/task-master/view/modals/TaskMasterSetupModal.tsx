@@ -53,12 +53,12 @@ export default function TaskMasterSetupModal({ isOpen, project, onClose, onAfter
           </button>
         </div>
 
-        <div className="flex-1 p-4">
+        <div className="flex-1 overflow-hidden p-4">
           <div className="h-full overflow-hidden rounded-lg bg-black">
             <Shell
               selectedProject={project}
               selectedSession={null}
-              initialCommand="npx task-master init"
+              initialCommand="task-master init"
               isPlainShell
               isActive
               onProcessComplete={(exitCode) => {
