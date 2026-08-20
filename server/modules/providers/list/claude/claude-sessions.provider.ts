@@ -232,6 +232,23 @@ function isInternalContent(content: string): boolean {
 }
 
 /**
+ * Claude Code CLI auto mode emits these exact strings as assistant text
+ * when a turn completes without requiring user input. They are internal
+ * state markers, not meaningful assistant responses.
+ */
+const INTERNAL_ASSISTANT_TEXTS = new Set([
+  'No response requested.',
+  'No action needed.',
+  'Nothing needed from you.',
+]);
+
+/** Check if assistant text is an internal CLI state marker. */
+function isInternalAssistantText(content: string): boolean {
+  const trimmed = content.trim();
+  return INTERNAL_ASSISTANT_TEXTS.has(trimmed);
+}
+
+/**
  * Claude wraps local slash-command metadata in lightweight XML-like tags inside
  * a plain string payload. We intentionally parse only the small tag surface we
  * care about instead of introducing a generic XML parser for untrusted history.
@@ -546,11 +563,11 @@ export class ClaudeSessionsProvider implements IProviderSessions {
       return messages;
     }
 
-    if (raw.message?.role === 'assistant' && raw.message?.content) {
+    if ((raw.message?.role === 'assistant' || raw.type === 'assistant') && raw.message?.content) {
       if (Array.isArray(raw.message.content)) {
         let partIndex = 0;
         for (const part of raw.message.content) {
-          if (part.type === 'text' && part.text) {
+          if (part.type === 'text' && part.text && !isInternalAssistantText(part.text)) {
             messages.push(createNormalizedMessage({
               id: `${baseId}_${partIndex}`,
               sessionId,
@@ -584,15 +601,17 @@ export class ClaudeSessionsProvider implements IProviderSessions {
           partIndex++;
         }
       } else if (typeof raw.message.content === 'string') {
-        messages.push(createNormalizedMessage({
-          id: baseId,
-          sessionId,
-          timestamp: ts,
-          provider: PROVIDER,
-          kind: 'text',
-          role: 'assistant',
-          content: raw.message.content,
-        }));
+        if (!isInternalAssistantText(raw.message.content)) {
+          messages.push(createNormalizedMessage({
+            id: baseId,
+            sessionId,
+            timestamp: ts,
+            provider: PROVIDER,
+            kind: 'text',
+            role: 'assistant',
+            content: raw.message.content,
+          }));
+        }
       }
       return messages;
     }
